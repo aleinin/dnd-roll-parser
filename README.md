@@ -26,20 +26,20 @@ where name could be a player or character.
 Format of the relationship file
 The relationship file is broken into 5 sections seperated by a [$12] token.The sections are:
 
-(character aliases)
-long_char=char
-[$12]
-(player aliases)
-long_play=play
-[$12]
-(characters played by)
-char=play
-[$12]
-(players list)
-play,play2
-[$12]
-(character list)
-char,char2
+(character aliases)<br/>
+long_char=char<br/>
+[$12]<br/>
+(player aliases)<br/>
+long_play=play<br/>
+[$12]<br/>
+(characters played by)<br/>
+char=play<br/>
+[$12]<br/>
+(players list)<br/>
+play,play2<br/>
+[$12]<br/>
+(character list)<br/>
+char,char2<br/>
 
 For example, lets say we have John Doe who plays character Arogak Destel. We also have Jane who plays Enok. In the results file  we want to show the two characters Arogak and Enok (first names only). Likewise, we only want the first names of the players.
 
