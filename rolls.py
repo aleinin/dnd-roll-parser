@@ -168,7 +168,7 @@ class RollParser():
     players = dict()
     recent_player = ""
     session = 1
-    chk_sess = -1
+    chk_sess = None
     debug_set = set()
     debug_dates = dict()
 
@@ -210,13 +210,8 @@ class RollParser():
             self.debug_dates[date] = 1
         elif date != "":
             self.debug_dates[date] = self.debug_dates[date] + 1
-        token = msg.find(text=re.compile(r'\[END S.\]'))
-        if parsed_date == "July 27, 2018 1:33PM":
-            self.session = 2
-        elif parsed_date == "August 01, 2018 7:14PM":
-            self.session = 3
-        elif token is not None:
-            self.session = int(token.replace("[END S", "").replace("]", ""))+1
+        if date != "":
+            self.session = date
 
     def get_roll_info(self, roll):
         try:
@@ -248,7 +243,7 @@ class RollParser():
             return -1, -1, -1
 
     def in_session(self):
-        return self.session == self.chk_sess or self.chk_sess == -1
+        return self.session == self.chk_sess or self.chk_sess is None
 
     def get_player_dn(self, file, n, chk_sess):
         self.chk_sess = chk_sess
@@ -258,7 +253,7 @@ class RollParser():
             for i, message in enumerate(messages):
                 self.get_author(message)
                 self.get_session(message)
-                roll_cards = message.find("div", class_=re.compile(r'.*-simple|.*-atkdmg|.*-atk'))
+                roll_cards = message.find("div", class_=re.compile(r'.*-simple|.*-atkdmg|.*-atk|.*-npc'))
                 if roll_cards and self.in_session():
                     attacks = roll_cards.find_all("span", class_=re.compile(r'inlinerollresult.*'))
                     for roll in attacks:
@@ -275,8 +270,8 @@ class RollParser():
                                     current_rolls.append(0)
                                 current_rolls[int(number_rolled) - 1] += 1
                                 self.players[self.recent_player] = current_rolls
-        for date, occurence in self.debug_dates.items():
-            print("{} with {} occurences".format(date, occurence))
+        #for date, occurence in self.debug_dates.items():
+            #print("{} with {} occurences".format(date, occurence))
         return self.players
 
     def get_author(self, tag):
@@ -293,17 +288,26 @@ class RollParser():
 
 
 def read_in_data():
+    global chk_sess
     with open("data.dat", "r") as data_in:
+        first_line = True
         for line in data_in:
-            line_split = line.split(":")
-            name = line_split[0]
-            rolls_str = line_split[1]
-            rolls_str = rolls_str.replace("[", "").replace("]", "").replace(" ", "")
-            rolls_split = rolls_str.split(",")
-            rolls = []
-            for roll in rolls_split:
-                rolls.append(int(roll))
-            data[name] = rolls
+            if not first_line:
+                line_split = line.split(":")
+                name = line_split[0]
+                rolls_str = line_split[1]
+                rolls_str = rolls_str.replace("[", "").replace("]", "").replace(" ", "")
+                rolls_split = rolls_str.split(",")
+                rolls = []
+                for roll in rolls_split:
+                    rolls.append(int(roll))
+                data[name] = rolls
+            else:
+                if line == "None\n":
+                    chk_sess = None
+                else:
+                    chk_sess = line.replace("\n", "")
+                first_line = False
 
 
 def attribute_data(relation_file):
@@ -322,7 +326,7 @@ def attribute_data(relation_file):
             if pby != "":
                 half = pby.split("=")
                 played_by[half[0]] = half[1]
-        for ppl in subsections[3].replace("\n", "").split("="):
+        for ppl in subsections[3].replace("\n", "").split(","):
             if ppl != "":
                 people.append(ppl)
     for name, rolls in data.items():
@@ -359,11 +363,13 @@ def attribute_data(relation_file):
 arg_parse = argparse.ArgumentParser()
 arg_parse.add_argument("HTML_File", help="The HTML file to parse")
 arg_parse.add_argument("-r", "-relationship", help="relationship file")
-arg_parse.add_argument("--c", "--continue", help="continuation flag")
-arg_parse.add_argument("-s", "-session", help="session to record for")
+arg_parse.add_argument("--c", "--continue", action='store_true', help="continuation flag")
+arg_parse.add_argument("-s", "-session", help="what dare to record rolls")
 args = arg_parse.parse_args()
 file_name = args.HTML_File
-
+if args.c and not args.r:
+    arg_parse.error("--c requires -r")
+    exit()
 played_by = dict()
 aliases = dict()
 character_aliases = dict()
@@ -374,34 +380,33 @@ people = []
 parser = RollParser()
 data = dict()
 if args.s:
-    chk_sess = int(args.s)
+    chk_sess = args.s
 else:
-    chk_sess = -1
+    chk_sess = None
 
 # COMPLETE FIRST RUN
 if args.r and not args.c:
     data = parser.get_player_dn(file_name, 20, chk_sess)
     attribute_data(args.r)
     out = RollWriter()
-    if chk_sess == -1:
+    if chk_sess is None:
         out.write_all("results.csv", data, 20)
     else:
-        out.write_all("session_{}_results.csv".format(chk_sess), data, 20)
+        out.write_all("{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", "")), data, 20)
 # COMPLETE CONTINUATION
 elif args.r:
     read_in_data()
     attribute_data(args.r)
     out = RollWriter()
-    if chk_sess == -1:
+    if chk_sess is None:
         out.write_all("results.csv", data, 20)
     else:
-        out.write_all("session_{}_results.csv".format(chk_sess), data, 20)
+        out.write_all("{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", "")), data, 20)
 # INCOMPLETE FIRST RUN
 else:
     data = parser.get_player_dn(file_name, 20, chk_sess)
     with open("data.dat", 'w') as data_out:
+        data_out.write("{}\n".format(chk_sess))
         for key, val in data.items():
-            print(key)
+            #print(key)
             data_out.write("{}:{}\n".format(key, val))
-# "Chat Log for Tomb of Annihilation.html"  -r toarel.txt
-# "Chat Log for Lost Mine of Phandelver.html" -r relationships.txt
