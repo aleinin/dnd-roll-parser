@@ -4,15 +4,20 @@ import csv
 import math
 import argparse
 
-#CDF
+
+# CDF
 def phi(x):
     return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
 
-class RollWriter():
-    xbar = -1
-    varx = -1
-    n = -1
-    header = ""
+
+class RollWriter:
+    def __init__(self, person_rolls, character_rolls):
+        self.character_rolls = character_rolls
+        self.person_rolls = person_rolls
+        self.xbar = -1
+        self.varx = -1
+        self.n = -1
+        self.header = ""
 
     def calc_var(self):
         summation = 0
@@ -68,7 +73,7 @@ class RollWriter():
         writer.writerow(self.header)
         char_rows = []
         # for all unique names found
-        for character, list in character_rolls.items():
+        for character, list in self.character_rolls.items():
             roll_sum = 0
             dice_rolled = 0
             # list = a list of the occurences of each number being thrown
@@ -111,7 +116,7 @@ class RollWriter():
         # total occurences of each D20 side
         all_list = []
         people_rows = []
-        for person, list in person_rolls.items():
+        for person, list in self.person_rolls.items():
             roll_sum = 0
             dice_rolled = 0
             # list = a list of the occurences of each number being thrown
@@ -164,13 +169,16 @@ class RollWriter():
         writer.writerow(["", "", "", "", "", "", "", "", "", "", "Probability:"] + prob_list)
 
 
-class RollParser():
-    players = dict()
-    recent_player = ""
-    session = 1
-    chk_sess = None
-    debug_set = set()
-    debug_dates = dict()
+class RollParser:
+    def __init__(self, file, chk_sess, debug):
+        self.file = file
+        self.players = dict()
+        self.recent_player = ""
+        self.session = 1
+        self.chk_sess = chk_sess
+        self.debug = debug
+        self.debug_set = set()
+        self.debug_dates = dict()
 
     def get_type_of_dice(self, title):
         # title in form:
@@ -204,8 +212,6 @@ class RollParser():
         if parsed_date_line is not None:
             parsed_date = parsed_date_line.contents[0]
             date = re.sub(' [0-9]*:[0-9]*[A|P]M', "", parsed_date)
-        else:
-            parsed_date = ""
         if date not in self.debug_dates and date != "":
             self.debug_dates[date] = 1
         elif date != "":
@@ -235,9 +241,11 @@ class RollParser():
                 try:
                     number_rolled = int(num)
                 except ValueError:
-                    print(title)
-                    print(num)
-                    quit()
+                    if (self.debug):
+                        print("Bad Value")
+                        print(title)
+                        print(num)
+                    return -1, -1, -1
             return number_of_dice, type_of_dice, number_rolled
         except KeyError:
             return -1, -1, -1
@@ -245,9 +253,8 @@ class RollParser():
     def in_session(self):
         return self.session == self.chk_sess or self.chk_sess is None
 
-    def get_player_dn(self, file, n, chk_sess):
-        self.chk_sess = chk_sess
-        with open(file, 'r', encoding="utf8") as in_file:
+    def get_player_dn(self, n):
+        with open(self.file, 'r', encoding="utf8") as in_file:
             soup = BeautifulSoup(in_file, 'lxml')
             messages = soup.find_all("div", class_=re.compile(r'message.*'))
             for i, message in enumerate(messages):
@@ -270,8 +277,20 @@ class RollParser():
                                     current_rolls.append(0)
                                 current_rolls[int(number_rolled) - 1] += 1
                                 self.players[self.recent_player] = current_rolls
-        #for date, occurence in self.debug_dates.items():
-            #print("{} with {} occurences".format(date, occurence))
+        if self.debug:
+            possible_occ = []
+            omitted = []
+            for date, occurence in self.debug_dates.items():
+                if occurence > 25:
+                    possible_occ.append("{} with {} occurences".format(date, occurence))
+                else:
+                    omitted.append("{} with {} occurences".format(date, occurence))
+            print("Omitted:")
+            for omm in omitted:
+                print(omm)
+            print("\nLikely Sessions:")
+            for possible in possible_occ:
+                print(possible)
         return self.players
 
     def get_author(self, tag):
@@ -284,11 +303,9 @@ class RollParser():
             self.debug_set.add(self.recent_player)
 
 
-
-
-
 def read_in_data():
-    global chk_sess
+    data = dict()
+    chk_sess = None
     with open("data.dat", "r") as data_in:
         first_line = True
         for line in data_in:
@@ -303,14 +320,19 @@ def read_in_data():
                     rolls.append(int(roll))
                 data[name] = rolls
             else:
-                if line == "None\n":
-                    chk_sess = None
-                else:
+                if not line == "None\n":
                     chk_sess = line.replace("\n", "")
                 first_line = False
+    return data, chk_sess
 
 
-def attribute_data(relation_file):
+def attribute_data(relation_file, data):
+    character_aliases = dict()
+    aliases = dict()
+    played_by = dict()
+    person_rolls = dict()
+    character_rolls = dict()
+    people = []
     with open(relation_file, "r", encoding='utf-8-sig') as rfile:
         relations = rfile.read()
         subsections = relations.split("[$12]")
@@ -359,54 +381,69 @@ def attribute_data(relation_file):
                     character_rolls[name] = roll_data
             else:
                 character_rolls[name] = rolls
+    return person_rolls, character_rolls
 
-arg_parse = argparse.ArgumentParser()
-arg_parse.add_argument("HTML_File", help="The HTML file to parse")
-arg_parse.add_argument("-r", "-relationship", help="relationship file")
-arg_parse.add_argument("--c", "--continue", action='store_true', help="continuation flag")
-arg_parse.add_argument("-s", "-session", help="what dare to record rolls")
-args = arg_parse.parse_args()
-file_name = args.HTML_File
-if args.c and not args.r:
-    arg_parse.error("--c requires -r")
-    exit()
-played_by = dict()
-aliases = dict()
-character_aliases = dict()
-person_rolls = dict()
-character_rolls = dict()
-people = []
 
-parser = RollParser()
-data = dict()
-if args.s:
-    chk_sess = args.s
-else:
+def main():
+    arg_parse, args = initialize_args()
+    file_name = args.HTML_File
     chk_sess = None
+    if args.s:
+        chk_sess = args.s
+    if args.r and not args.c:
+        complete_run(args.r, file_name, chk_sess, args.d)
+    elif args.r:
+        partial_finish(args.r)
+    else:
+        partial_run(file_name, chk_sess, args.d)
 
-# COMPLETE FIRST RUN
-if args.r and not args.c:
-    data = parser.get_player_dn(file_name, 20, chk_sess)
-    attribute_data(args.r)
-    out = RollWriter()
+
+def initialize_args():
+    arg_parse = argparse.ArgumentParser()
+    arg_parse.add_argument("HTML_File", help="The HTML file to parse")
+    arg_parse.add_argument("-r", "-relationship", help="relationship file")
+    arg_parse.add_argument("--c", "--continue", action='store_true', help="continuation flag")
+    arg_parse.add_argument("--d", "--debug", action='store_true', help="debug flag")
+    arg_parse.add_argument("-s", "-session", help="what dare to record rolls")
+    args = arg_parse.parse_args()
+    if args.c and not args.r:
+        arg_parse.error("--c requires -r")
+        exit()
+    if args.c and args.s:
+        arg_parse.error("--c not compatible with -s. The session data is stored by the partial run.")
+    return arg_parse, args
+
+
+def complete_run(relationship_file, file_name, chk_sess, debug):
+    parser = RollParser(file_name, chk_sess, debug)
+    data = parser.get_player_dn(20)
+    person_rolls, character_rolls = attribute_data(relationship_file, data)
+    out = RollWriter(person_rolls, character_rolls)
     if chk_sess is None:
         out.write_all("results.csv", data, 20)
     else:
         out.write_all("{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", "")), data, 20)
-# COMPLETE CONTINUATION
-elif args.r:
-    read_in_data()
-    attribute_data(args.r)
-    out = RollWriter()
+
+
+def partial_finish(relationship_file):
+    data, chk_sess = read_in_data()
+    person_rolls, character_rolls = attribute_data(relationship_file, data)
+    out = RollWriter(person_rolls, character_rolls)
     if chk_sess is None:
         out.write_all("results.csv", data, 20)
     else:
         out.write_all("{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", "")), data, 20)
-# INCOMPLETE FIRST RUN
-else:
-    data = parser.get_player_dn(file_name, 20, chk_sess)
+
+
+def partial_run(file_name, chk_sess, debug):
+    parser = RollParser(file_name, chk_sess, debug)
+    data = parser.get_player_dn(20)
     with open("data.dat", 'w') as data_out:
         data_out.write("{}\n".format(chk_sess))
         for key, val in data.items():
-            #print(key)
+            # print(key)
             data_out.write("{}:{}\n".format(key, val))
+
+
+if __name__ == '__main__':
+    main()
