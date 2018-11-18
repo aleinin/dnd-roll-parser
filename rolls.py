@@ -5,9 +5,6 @@ import math
 import argparse
 
 
-
-
-
 class RollWriter:
     def __init__(self, person_rolls, character_rolls, n, csv_out):
         self.character_rolls = character_rolls
@@ -201,6 +198,7 @@ class RollParser:
             self.debug_dates[date] = self.debug_dates[date] + 1
         if date != "":
             self.session = date
+
     # returns if the roll is from the date supplied
     # if no date was supplied, returns true
     def in_session(self):
@@ -224,7 +222,7 @@ class RollParser:
         with open(self.file, 'r', encoding="utf8") as in_file:
             soup = BeautifulSoup(in_file, 'lxml')
             messages = soup.find_all("div", class_=re.compile(r'message.*'))
-            for i, message in enumerate(messages):
+            for msg_num, message in enumerate(messages):
                 self.get_author(message)
                 self.get_session(message)
                 roll_cards = message.find("div", class_=re.compile(r'.*-simple|.*-atkdmg|.*-atk|.*-npc'))
@@ -232,6 +230,9 @@ class RollParser:
                     attacks = roll_cards.find_all("span", class_=re.compile(r'inlinerollresult.*'))
                     for roll in attacks:
                         number_of_dice, type_of_dice, number_rolled = RollParser.get_roll_info(roll)
+                        if self.debug:
+                            print("{} rolled a {}d{} for {} on {}".format(self.recent_player, number_of_dice,
+                                                                          type_of_dice, number_rolled, self.session))
                         if type_of_dice == n:
                             if self.recent_player in self.players:
                                 current_rolls = self.players[self.recent_player]
@@ -247,9 +248,11 @@ class RollParser:
         if self.debug:
             self.debug_print()
         return self.players
+
     # if the debug flag was supplied, print some extra info
     # currently the info is about what date roles are from.
     def debug_print(self):
+        print()
         possible_occ = []
         omitted = []
         for date, occurence in self.debug_dates.items():
@@ -263,6 +266,7 @@ class RollParser:
         print("\nLikely Sessions:")
         for possible in possible_occ:
             print(possible)
+
 
 # Used for partial runs
 # reads in the already parsed data stored in the
@@ -288,6 +292,7 @@ def read_in_data():
                     chk_sess = line.replace("\n", "")
                 first_line = False
     return data, chk_sess
+
 
 # given the key value pairs supplied by the relationship file,
 # attribute the rolls to the correct people and characters.
@@ -353,23 +358,29 @@ def main():
     arg_parse, args = initialize_args()
     file_name = args.HTML_File
     chk_sess = None
+    n = int(args.n)
     if args.s:
         chk_sess = args.s
-    if args.r and not args.c:
-        complete_run(args.r, file_name, chk_sess, args.d)
+    if args.f:
+        force_run(file_name, n)
+    elif args.r and not args.c:
+        complete_run(args.r, file_name, chk_sess, args.d, n)
     elif args.r:
-        partial_finish(args.r)
+        partial_finish(args.r, n)
     else:
-        partial_run(file_name, chk_sess, args.d)
+        partial_run(file_name, chk_sess, args.d, n)
 
 
 def initialize_args():
     arg_parse = argparse.ArgumentParser()
     arg_parse.add_argument("HTML_File", help="The HTML file to parse")
+    arg_parse.add_argument("n", help="what sided die to record data for")
     arg_parse.add_argument("-r", "-relationship", help="relationship file")
+    arg_parse.add_argument("-s", "-session", help="what dare to record rolls")
     arg_parse.add_argument("--c", "--continue", action='store_true', help="continuation flag")
     arg_parse.add_argument("--d", "--debug", action='store_true', help="debug flag")
-    arg_parse.add_argument("-s", "-session", help="what dare to record rolls")
+    arg_parse.add_argument("--f", "--force", action='store_true', help="forces full run without relationship file")
+
     args = arg_parse.parse_args()
     if args.c and not args.r:
         arg_parse.error("--c requires -r")
@@ -378,39 +389,52 @@ def initialize_args():
         arg_parse.error("--c not compatible with -s. The session data is stored by the partial run.")
     return arg_parse, args
 
+
 # complete standalone run that mines the chat log and produces a csv
-def complete_run(relationship_file, file_name, chk_sess, debug):
+def complete_run(relationship_file, file_name, chk_sess, debug, n):
     parser = RollParser(file_name, chk_sess, debug)
-    data = parser.get_player_dn(20)
+    data = parser.get_player_dn(n)
     person_rolls, character_rolls = attribute_data(relationship_file, data)
     if chk_sess is None:
         csv_out = "results.csv"
     else:
         csv_out = "{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", ""))
-    out = RollWriter(person_rolls, character_rolls, 20, csv_out)
+    out = RollWriter(person_rolls, character_rolls, n, csv_out)
     out.write_all()
+
 
 # second half of a partial run that reads in the already parsed data
 # and writes out to the csv
-def partial_finish(relationship_file):
+def partial_finish(relationship_file, n):
     data, chk_sess = read_in_data()
     person_rolls, character_rolls = attribute_data(relationship_file, data)
     if chk_sess is None:
         csv_out = "results.csv"
     else:
         csv_out = "{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", ""))
-    out = RollWriter(person_rolls, character_rolls, 20, csv_out)
+    out = RollWriter(person_rolls, character_rolls, n, csv_out)
     out.write_all()
+
 
 # first half of a partial run that parses the data and writes it
 # to an intermediate file. (to be completed once a relationship file is made)
-def partial_run(file_name, chk_sess, debug):
+def partial_run(file_name, chk_sess, debug, n):
     parser = RollParser(file_name, chk_sess, debug)
-    data = parser.get_player_dn(20)
+    data = parser.get_player_dn(n)
     with open("data.dat", 'w') as data_out:
         data_out.write("{}\n".format(chk_sess))
         for key, val in data.items():
             data_out.write("{}:{}\n".format(key, val))
+
+
+# debug run to force a full run without a relationship file
+def force_run(file_name, n):
+    parser = RollParser(file_name, None, True)
+    data = parser.get_player_dn(n)
+    char_rolls = data
+    pers_rolls = data
+    out = RollWriter(pers_rolls, char_rolls, n, "debug.csv")
+    out.write_all()
 
 
 if __name__ == '__main__':
