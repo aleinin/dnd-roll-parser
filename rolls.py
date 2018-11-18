@@ -5,20 +5,23 @@ import math
 import argparse
 
 
-# CDF
-def phi(x):
-    return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
+
 
 
 class RollWriter:
-    def __init__(self, person_rolls, character_rolls):
+    def __init__(self, person_rolls, character_rolls, n, csv_out):
         self.character_rolls = character_rolls
         self.person_rolls = person_rolls
-        self.xbar = -1
-        self.varx = -1
-        self.n = -1
-        self.header = ""
+        self.n = n
+        self.csv_out = csv_out
+        self.header = ["Name", "Avg", "# Rolled", "Sum", "Expected Sum", "Difference", "s^2", "s",
+                       "Z", "P(Z>)", "Fair die?"]
+        self.calc_var()
+        self.create_header()
+        self.ci = 99
 
+    # calculates xbar and variance based off
+    # of n (number of dice sides)
     def calc_var(self):
         summation = 0
         squareation = 0
@@ -29,19 +32,14 @@ class RollWriter:
             squareation += (j - self.xbar) * (j - self.xbar)
         self.varx = squareation / (self.n - 1)
 
+    # appends 1...n to the header
     def create_header(self):
-        self.header = ["name", "Avg D20 Roll", "# Rolled", "Sum", "Expected Sum", "Variance", "st dev", "Difference",
-                       "Z",
-                       "P(Z>)", "Fair die?"]
         for i in range(1, self.n + 1):
             self.header.append(i)
 
-    def write_all(self, file, play, n):
-        self.players = play
-        self.n = n
-        self.create_header()
-        with open(file, 'w', newline='') as out_file:
-            self.calc_var()
+    # hub function that writes the csv
+    def write_all(self):
+        with open(self.csv_out, 'w', newline='') as out_file:
             writer = csv.writer(out_file)
             self.write_characters(writer)
             writer.writerow([])
@@ -49,6 +47,8 @@ class RollWriter:
             writer.writerow([])
             self.write_static(writer)
 
+    # Responsible for writing the static math in the csv
+    # based off of n. (Ex: what is the avg roll for that n sided die)
     def write_static(self, writer):
         writer.writerow(["Static Numbers"])
         writer.writerow(["Sides", "Prob", "Squared", "", ""])
@@ -64,109 +64,90 @@ class RollWriter:
                 calc = ""
             writer.writerow([i, 1 / self.n, i * i, label, calc])
 
-        # function that writes the characters. Characters are the names that are not people.
-        # if the function cannot figure out who someone it will add it as a character. It will also
-        # ask if that name "belongs" to anyone. This is equivalent to the played_by above.
+    # returns whether or not the calculated position on the standard
+    # normal distribution is within the confidence interval
+    def confidence_interval(self, p):
+        # 99% confidence interval
+        if p > self.ci or p < (100 - self.ci):
+            return "unlikely"
+        else:
+            return "likely"
 
+    # helper function that does all the statistics relating to the roll data
+    # it then packages it up into a list
+    def calc_stats(self, roll_sum, num_dice_rolled):
+        xbar = round((roll_sum / (num_dice_rolled * self.n)) * self.n, 3)
+        expected_sum = num_dice_rolled * self.xbar
+        variance = num_dice_rolled * self.varx
+        std = math.sqrt(variance)
+        sum_diff = roll_sum - expected_sum
+        z_score = (roll_sum - expected_sum) / std
+        percent_norm = round((1 - RollWriter.phi(z_score)) * 100, 2)
+        fairness = self.confidence_interval(percent_norm)
+        stat_arr = [xbar, num_dice_rolled, roll_sum, expected_sum, sum_diff, variance, std, z_score, percent_norm,
+                    fairness]
+        return stat_arr
+
+    # writes the data relating to the items described as characters in the relationship file
     def write_characters(self, writer):
         writer.writerow(["Characters"])
         writer.writerow(self.header)
         char_rows = []
-        # for all unique names found
-        for character, list in self.character_rolls.items():
-            roll_sum = 0
-            dice_rolled = 0
-            # list = a list of the occurences of each number being thrown
-            # so for a D20 its [1 count, 2 count, 3count,..., 20 count]
-            for i, roll in enumerate(list):
-                # print("{} {}".format(i, roll))
-                dice_rolled += roll
-                roll_sum += (roll * (i + 1))
-            avg = round((roll_sum / (dice_rolled * self.n)) * self.n, 3)
-            # Name not specified in the dictionaries above
-            # Expected (10.5*# Rolled) Sample Sum
-            exp = dice_rolled * self.xbar
-            # Sample variance
-            var = dice_rolled * self.varx
-            # sample standard deviation
-            std = math.sqrt(var)
-            # Expected Sum - Sample Sum
-            diff = roll_sum - exp
-            z = (roll_sum - exp) / std
-            p = round((1 - phi(z)) * 100, 2)
-            # 99% confidence interval
-            if p > 99 or p < 1:
-                conc = "unlikely"
-            else:
-                conc = "likely"
-            char_rows.append([character, avg, dice_rolled, roll_sum, exp, var, std, diff, z, p, conc] + list)
+        for char_name, roll_occurrence_arr in self.character_rolls.items():
+            char_roll_sum = 0
+            char_num_dice_rolled = 0
+            for i, num_i_rolled in enumerate(roll_occurrence_arr):
+                char_num_dice_rolled += num_i_rolled
+                char_roll_sum += (num_i_rolled * (i + 1))
+            stat_arr = self.calc_stats(char_roll_sum, char_num_dice_rolled)
+            char_rows.append([char_name] + stat_arr + roll_occurrence_arr)
         # sort by average D20
         char_rows.sort(key=lambda x: x[1])
         writer.writerows(char_rows)
 
-    # function that writes the people. people are the names that are not characters.
-    def write_people(self, writer):
-        writer.writerow(["People"])
-        writer.writerow(self.header)
-        # total number of all dice thrown. Note, only includes people.
-        # so if a character was thrown out via "" above, their rolls are not included in the total calculation
-        all_dice_rolled = 0
-        # Total sum
-        all_sum = 0
-        # total occurences of each D20 side
-        all_list = []
-        people_rows = []
-        for person, list in self.person_rolls.items():
-            roll_sum = 0
-            dice_rolled = 0
-            # list = a list of the occurences of each number being thrown
-            # so for a D20 its [1 count, 2 count, 3count,..., 20 count]
-            for i, roll in enumerate(list):
-                # print("{} {}".format(i, roll))
-                dice_rolled += roll
-                roll_sum += (roll * (i + 1))
-            avg = round((roll_sum / (dice_rolled * self.n)) * self.n, 3)
-            exp = dice_rolled * self.xbar
-            var = dice_rolled * self.varx
-            std = math.sqrt(var)
-            diff = roll_sum - exp
-            z = (roll_sum - exp) / std
-            p = round((1 - phi(z)) * 100, 2)
-            if p > 95 or p < 5:
-                conc = "unlikely"
-            else:
-                conc = "likely"
-            people_rows.append([person, avg, dice_rolled, roll_sum] + [exp, var, std, diff, z, p, conc] + list)
-            # summation work for total later
-            all_dice_rolled = all_dice_rolled + dice_rolled
-            all_sum = all_sum + roll_sum
-            # all_list keeps track of the total occurences of eah D20 side
-            if all_list == []:
-                for i in range(0, self.n):
-                    all_list.append(0)
-            for i in range(0, self.n):
-                all_list[i] += list[i]
-        people_rows.sort(key=lambda x: x[1])
-        writer.writerows(people_rows)
-        # TOTAL
-        avg = round(((all_sum / (all_dice_rolled * self.n)) * self.n), 3)
-        exp = all_dice_rolled * self.xbar
-        var = all_dice_rolled * self.varx
-        std = math.sqrt(var)
-        diff = all_sum - exp
-        z = (all_sum - exp) / std
-        p = round((1 - phi(z)) * 100, 2)
-        if p > 95 or p < 5:
-            conc = "unlikely"
-        else:
-            conc = "likely"
-        writer.writerow(["Total", avg, all_dice_rolled, all_sum, exp, var, std, diff, z, p, conc] + all_list)
+    # writes the data relating to the total rolls
+    def write_total(self, writer, all_sum, all_dice_rolled, all_list):
+        stat_arr = self.calc_stats(all_sum, all_dice_rolled)
+        writer.writerow(["Total"] + stat_arr + all_list)
         prob_list = []
         for i in range(0, self.n):
             prob_list.append(0)
         for i in range(0, self.n):
             prob_list[i] = round(all_list[i] / all_dice_rolled, 3)
         writer.writerow(["", "", "", "", "", "", "", "", "", "", "Probability:"] + prob_list)
+
+    def write_people(self, writer):
+        writer.writerow(["People"])
+        writer.writerow(self.header)
+        total_dice_rolled = 0
+        total_sum = 0
+        total_roll_occurence_arr = []
+        people_rows = []
+        for person_name, roll_occurrence_arr in self.person_rolls.items():
+            roll_sum = 0
+            num_dice_rolled = 0
+            for i, num_i_rolled in enumerate(roll_occurrence_arr):
+                num_dice_rolled += num_i_rolled
+                roll_sum += (num_i_rolled * (i + 1))
+            stat_arr = self.calc_stats(roll_sum, num_dice_rolled)
+            people_rows.append([person_name] + stat_arr + roll_occurrence_arr)
+            # summation work for total later
+            total_dice_rolled = total_dice_rolled + num_dice_rolled
+            total_sum = total_sum + roll_sum
+            # all_list keeps track of the total occurences of eah D20 side
+            if not total_roll_occurence_arr:
+                for i in range(0, self.n):
+                    total_roll_occurence_arr.append(0)
+            for i in range(0, self.n):
+                total_roll_occurence_arr[i] += roll_occurrence_arr[i]
+        people_rows.sort(key=lambda x: x[1])
+        writer.writerows(people_rows)
+        self.write_total(writer, total_sum, total_dice_rolled, total_roll_occurence_arr)
+
+    # CDF
+    @staticmethod
+    def phi(x):
+        return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
 
 
 class RollParser:
@@ -180,32 +161,34 @@ class RollParser:
         self.debug_set = set()
         self.debug_dates = dict()
 
-    def get_type_of_dice(self, title):
-        # title in form:
-        # Rolling 1d20cs>20 + 5[DEX] + -3[MOD] + 3[PROF] = (<span class="basicdiceroll">5</span>)+5+-3+3
-        # want to extract '1d20'
-        num = ""
-        type = ""
-        pre = False
-        post = False
-        for char in title:
-            if not post:
-                if char != "d":
-                    if char.isdigit():
-                        num = num + char
-                        pre = True
-                    else:
-                        if pre:
-                            return -1, -1
-                else:
-                    post = True
-            else:
-                if char.isdigit():
-                    type = type + char
-                else:
-                    break
-        return int(num), int(type)
+    # helper function for get_roll_info returns
+    # what quantity and kind of dice roll is contained
+    # in the html. ex: 1d20
+    @staticmethod
+    def get_type_of_dice(title):
+        title_extract = re.search('[0-9]d[0-9][0-9]?', title)
+        if title_extract:
+            roll_string = title_extract.group(0)
+            roll_split = roll_string.split("d")
+            return int(roll_split[0]), int(roll_split[1])
+        else:
+            return -1, -1
 
+    # given an inlineroll, returns what quantity, kind of dice,
+    # and what number was rolled.
+    # ex 1d20 rolled a 8
+    @staticmethod
+    def get_roll_info(roll):
+        title = roll['title']
+        number_of_dice, type_of_dice = RollParser.get_type_of_dice(title)
+        num_rolled_extract = re.search('>[0-9][0-9]?<', title)
+        if num_rolled_extract and number_of_dice != -1:
+            number_rolled = int(num_rolled_extract.group(0).replace(">", "").replace("<", ""))
+        else:
+            return -1, -1, -1
+        return number_of_dice, type_of_dice, number_rolled
+
+    # Figures out the date the roll is from by parsing the time stamp
     def get_session(self, msg):
         parsed_date_line = msg.find("span", class_="tstamp")
         date = ""
@@ -218,41 +201,25 @@ class RollParser:
             self.debug_dates[date] = self.debug_dates[date] + 1
         if date != "":
             self.session = date
-
-    def get_roll_info(self, roll):
-        try:
-            title = roll['title']
-            number_of_dice, type_of_dice = self.get_type_of_dice(title)
-            if number_of_dice == -1:
-                return -1, -1, -1
-            else:
-                num = ""
-                post = False
-                for char in title:
-                    if not post:
-                        if char == "=":
-                            post = True
-                    else:
-                        if char != "+":
-                            if char.isdigit():
-                                num = num + char
-                        else:
-                            break
-                try:
-                    number_rolled = int(num)
-                except ValueError:
-                    if (self.debug):
-                        print("Bad Value")
-                        print(title)
-                        print(num)
-                    return -1, -1, -1
-            return number_of_dice, type_of_dice, number_rolled
-        except KeyError:
-            return -1, -1, -1
-
+    # returns if the roll is from the date supplied
+    # if no date was supplied, returns true
     def in_session(self):
         return self.session == self.chk_sess or self.chk_sess is None
 
+    # finds who the roll belonged to by parsing the author data
+    def get_author(self, tag):
+        by = tag.find("span", class_="by")
+        whisper = re.compile("^\(.*\)$")
+        if by:
+            self.recent_player = by.contents[0].replace(":", "").replace(" (GM)", "")
+            if whisper.match(self.recent_player):
+                self.recent_player = self.recent_player[1:-1].replace("From ", "")
+            self.debug_set.add(self.recent_player)
+
+    # main function that parses each message in the chat log
+    # it then finds the attack cards inside those messages
+    # and gathers data about the roll and records it along
+    # with all other neccesary information
     def get_player_dn(self, n):
         with open(self.file, 'r', encoding="utf8") as in_file:
             soup = BeautifulSoup(in_file, 'lxml')
@@ -264,7 +231,7 @@ class RollParser:
                 if roll_cards and self.in_session():
                     attacks = roll_cards.find_all("span", class_=re.compile(r'inlinerollresult.*'))
                     for roll in attacks:
-                        number_of_dice, type_of_dice, number_rolled = self.get_roll_info(roll)
+                        number_of_dice, type_of_dice, number_rolled = RollParser.get_roll_info(roll)
                         if type_of_dice == n:
                             if self.recent_player in self.players:
                                 current_rolls = self.players[self.recent_player]
@@ -278,31 +245,28 @@ class RollParser:
                                 current_rolls[int(number_rolled) - 1] += 1
                                 self.players[self.recent_player] = current_rolls
         if self.debug:
-            possible_occ = []
-            omitted = []
-            for date, occurence in self.debug_dates.items():
-                if occurence > 25:
-                    possible_occ.append("{} with {} occurences".format(date, occurence))
-                else:
-                    omitted.append("{} with {} occurences".format(date, occurence))
-            print("Omitted:")
-            for omm in omitted:
-                print(omm)
-            print("\nLikely Sessions:")
-            for possible in possible_occ:
-                print(possible)
+            self.debug_print()
         return self.players
+    # if the debug flag was supplied, print some extra info
+    # currently the info is about what date roles are from.
+    def debug_print(self):
+        possible_occ = []
+        omitted = []
+        for date, occurence in self.debug_dates.items():
+            if occurence > 25:
+                possible_occ.append("{} with {} occurences".format(date, occurence))
+            else:
+                omitted.append("{} with {} occurences".format(date, occurence))
+        print("Omitted:")
+        for omm in omitted:
+            print(omm)
+        print("\nLikely Sessions:")
+        for possible in possible_occ:
+            print(possible)
 
-    def get_author(self, tag):
-        by = tag.find("span", class_="by")
-        whisper = re.compile("^\(.*\)$")
-        if by:
-            self.recent_player = by.contents[0].replace(":", "").replace(" (GM)", "")
-            if whisper.match(self.recent_player):
-                self.recent_player = self.recent_player[1:-1].replace("From ", "")
-            self.debug_set.add(self.recent_player)
-
-
+# Used for partial runs
+# reads in the already parsed data stored in the
+# intermediate file into a list.
 def read_in_data():
     data = dict()
     chk_sess = None
@@ -325,7 +289,8 @@ def read_in_data():
                 first_line = False
     return data, chk_sess
 
-
+# given the key value pairs supplied by the relationship file,
+# attribute the rolls to the correct people and characters.
 def attribute_data(relation_file, data):
     character_aliases = dict()
     aliases = dict()
@@ -413,35 +378,38 @@ def initialize_args():
         arg_parse.error("--c not compatible with -s. The session data is stored by the partial run.")
     return arg_parse, args
 
-
+# complete standalone run that mines the chat log and produces a csv
 def complete_run(relationship_file, file_name, chk_sess, debug):
     parser = RollParser(file_name, chk_sess, debug)
     data = parser.get_player_dn(20)
     person_rolls, character_rolls = attribute_data(relationship_file, data)
-    out = RollWriter(person_rolls, character_rolls)
     if chk_sess is None:
-        out.write_all("results.csv", data, 20)
+        csv_out = "results.csv"
     else:
-        out.write_all("{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", "")), data, 20)
+        csv_out = "{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", ""))
+    out = RollWriter(person_rolls, character_rolls, 20, csv_out)
+    out.write_all()
 
-
+# second half of a partial run that reads in the already parsed data
+# and writes out to the csv
 def partial_finish(relationship_file):
     data, chk_sess = read_in_data()
     person_rolls, character_rolls = attribute_data(relationship_file, data)
-    out = RollWriter(person_rolls, character_rolls)
     if chk_sess is None:
-        out.write_all("results.csv", data, 20)
+        csv_out = "results.csv"
     else:
-        out.write_all("{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", "")), data, 20)
+        csv_out = "{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", ""))
+    out = RollWriter(person_rolls, character_rolls, 20, csv_out)
+    out.write_all()
 
-
+# first half of a partial run that parses the data and writes it
+# to an intermediate file. (to be completed once a relationship file is made)
 def partial_run(file_name, chk_sess, debug):
     parser = RollParser(file_name, chk_sess, debug)
     data = parser.get_player_dn(20)
     with open("data.dat", 'w') as data_out:
         data_out.write("{}\n".format(chk_sess))
         for key, val in data.items():
-            # print(key)
             data_out.write("{}:{}\n".format(key, val))
 
 
