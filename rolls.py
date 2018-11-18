@@ -20,14 +20,14 @@ class RollWriter:
     # calculates xbar and variance based off
     # of n (number of dice sides)
     def calc_var(self):
-        summation = 0
-        squareation = 0
+        n_summation = 0
+        n2_summation = 0
         for i in range(1, self.n + 1):
-            summation += i
-        self.xbar = summation / self.n
+            n_summation += i
+        self.xbar = n_summation / self.n
         for j in range(1, self.n + 1):
-            squareation += (j - self.xbar) * (j - self.xbar)
-        self.varx = squareation / (self.n - 1)
+            n2_summation += (j - self.xbar) * (j - self.xbar)
+        self.varx = n2_summation / (self.n - 1)
 
     # appends 1...n to the header
     def create_header(self):
@@ -85,7 +85,7 @@ class RollWriter:
                     fairness]
         return stat_arr
 
-    # writes the data relating to the items described as characters in the relationship file
+    # writes the data relating to the items described as characters in the alias file
     def write_characters(self, writer):
         writer.writerow(["Characters"])
         writer.writerow(self.header)
@@ -293,19 +293,16 @@ def read_in_data():
                 first_line = False
     return data, chk_sess
 
-
-# given the key value pairs supplied by the relationship file,
-# attribute the rolls to the correct people and characters.
-def attribute_data(relation_file, data):
+# reads in the data of the alias file into the appropriate dictionaries and lists
+def read_in_alias(alias_file):
     character_aliases = dict()
-    aliases = dict()
+    person_aliases = dict()
     played_by = dict()
-    person_rolls = dict()
-    character_rolls = dict()
     people = []
-    with open(relation_file, "r", encoding='utf-8-sig') as rfile:
-        relations = rfile.read()
-        subsections = relations.split("[$12]")
+    characters = []
+    with open(alias_file, "r", encoding='utf-8-sig') as rfile:
+        aliases = rfile.read()
+        subsections = aliases.split("[$12]")
         for calias in subsections[0].split("\n"):
             if calias != "":
                 half = calias.split("=")
@@ -313,7 +310,7 @@ def attribute_data(relation_file, data):
         for alias in subsections[1].split("\n"):
             if alias != "":
                 half = alias.split("=")
-                aliases[half[0]] = half[1]
+                person_aliases[half[0]] = half[1]
         for pby in subsections[2].split("\n"):
             if pby != "":
                 half = pby.split("=")
@@ -321,37 +318,50 @@ def attribute_data(relation_file, data):
         for ppl in subsections[3].replace("\n", "").split(","):
             if ppl != "":
                 people.append(ppl)
+        for char in subsections[4].replace("\n", "").split(","):
+            if char != "":
+                characters.append(char)
+    return character_aliases, person_aliases, played_by, people, characters
+
+
+# uses alias file to translate names to known key value pairs
+# ex: if name is "John Doe" or "John D." they might both translate
+# to "John" if those alias pairs are described in the file.
+def translate_name(name, character_aliases, aliases):
+    if name in character_aliases:
+        name = character_aliases[name]
+    elif name in aliases:
+        name = aliases[name]
+    return name
+
+
+# takes a list of occurrences of rolls 1..n and adds it to any list 1..n that has
+# a matching name. If there is no matching name it adds the roll to the cumulative
+# list
+def add_roll_to_cumulative(name, cumulative_rolls, individual_rolls):
+    if name in cumulative_rolls:
+        sum_roll_data = cumulative_rolls[name]
+        for i in range(0, len(individual_rolls)):
+            sum_roll_data[i] += individual_rolls[i]
+        cumulative_rolls[name] = sum_roll_data
+    else:
+        cumulative_rolls[name] = individual_rolls
+    return cumulative_rolls
+
+
+# given the key value pairs supplied by the alias file,
+# attribute the rolls to the correct people and characters.
+def attribute_data(alias_file, data):
+    all_people_rolls = dict()
+    all_char_rolls = dict()
+    character_aliases, aliases, played_by, people, characters = read_in_alias(alias_file)
     for name, rolls in data.items():
-        if name in character_aliases:
-            name = character_aliases[name]
-        elif name in aliases:
-            name = aliases[name]
-        if name in people:
-            if name in person_rolls:
-                roll_data = person_rolls[name]
-                for i in range(0, len(rolls)):
-                    roll_data[i] += rolls[i]
-                person_rolls[name] = roll_data
-            else:
-                person_rolls[name] = rolls
+        name = translate_name(name, character_aliases, aliases)
+        if name in people or name in played_by:
+            all_people_rolls = add_roll_to_cumulative(name, all_people_rolls, rolls)
         else:
-            if name in played_by:
-                belongs_to = played_by[name]
-                if belongs_to in person_rolls:
-                    roll_data = person_rolls[belongs_to]
-                    for i in range(0, len(rolls)):
-                        roll_data[i] += rolls[i]
-                        person_rolls[belongs_to] = roll_data
-                else:
-                    person_rolls[belongs_to] = rolls
-            if name in character_rolls:
-                roll_data = character_rolls[name]
-                for i in range(0, len(rolls)):
-                    roll_data[i] += rolls[i]
-                    character_rolls[name] = roll_data
-            else:
-                character_rolls[name] = rolls
-    return person_rolls, character_rolls
+            all_char_rolls = add_roll_to_cumulative(name, all_char_rolls, rolls)
+    return all_people_rolls, all_char_rolls
 
 
 def main():
@@ -375,11 +385,11 @@ def initialize_args():
     arg_parse = argparse.ArgumentParser()
     arg_parse.add_argument("HTML_File", help="The HTML file to parse")
     arg_parse.add_argument("n", help="what sided die to record data for")
-    arg_parse.add_argument("-r", "-relationship", help="relationship file")
+    arg_parse.add_argument("-a", "-alias", help="alias file")
     arg_parse.add_argument("-s", "-session", help="what dare to record rolls")
     arg_parse.add_argument("--c", "--continue", action='store_true', help="continuation flag")
     arg_parse.add_argument("--d", "--debug", action='store_true', help="debug flag")
-    arg_parse.add_argument("--f", "--force", action='store_true', help="forces full run without relationship file")
+    arg_parse.add_argument("--f", "--force", action='store_true', help="forces full run without alias file")
 
     args = arg_parse.parse_args()
     if args.c and not args.r:
@@ -391,10 +401,10 @@ def initialize_args():
 
 
 # complete standalone run that mines the chat log and produces a csv
-def complete_run(relationship_file, file_name, chk_sess, debug, n):
+def complete_run(alias_file, file_name, chk_sess, debug, n):
     parser = RollParser(file_name, chk_sess, debug)
     data = parser.get_player_dn(n)
-    person_rolls, character_rolls = attribute_data(relationship_file, data)
+    person_rolls, character_rolls = attribute_data(alias_file, data)
     if chk_sess is None:
         csv_out = "results.csv"
     else:
@@ -405,9 +415,9 @@ def complete_run(relationship_file, file_name, chk_sess, debug, n):
 
 # second half of a partial run that reads in the already parsed data
 # and writes out to the csv
-def partial_finish(relationship_file, n):
+def partial_finish(alias_file, n):
     data, chk_sess = read_in_data()
-    person_rolls, character_rolls = attribute_data(relationship_file, data)
+    person_rolls, character_rolls = attribute_data(alias_file, data)
     if chk_sess is None:
         csv_out = "results.csv"
     else:
@@ -417,7 +427,7 @@ def partial_finish(relationship_file, n):
 
 
 # first half of a partial run that parses the data and writes it
-# to an intermediate file. (to be completed once a relationship file is made)
+# to an intermediate file. (to be completed once an alias file is made)
 def partial_run(file_name, chk_sess, debug, n):
     parser = RollParser(file_name, chk_sess, debug)
     data = parser.get_player_dn(n)
@@ -427,7 +437,7 @@ def partial_run(file_name, chk_sess, debug, n):
             data_out.write("{}:{}\n".format(key, val))
 
 
-# debug run to force a full run without a relationship file
+# debug run to force a full run without an alias file
 def force_run(file_name, n):
     parser = RollParser(file_name, None, True)
     data = parser.get_player_dn(n)
