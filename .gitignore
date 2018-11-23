@@ -1,6 +1,7 @@
 *
 !.gitignore
-!.rolls.py
-!.README.md
-!.idea
-!.venv
+!rolls.py
+!README.md
+!.idea/
+!/venv/*
+.idea/workspace.xml*
