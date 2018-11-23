@@ -357,10 +357,12 @@ def attribute_data(alias_file, data):
     character_aliases, aliases, played_by, people, characters = read_in_alias(alias_file)
     for name, rolls in data.items():
         name = translate_name(name, character_aliases, aliases)
-        if name in people or name in played_by:
+        if name in people:
             all_people_rolls = add_roll_to_cumulative(name, all_people_rolls, rolls)
         else:
             all_char_rolls = add_roll_to_cumulative(name, all_char_rolls, rolls)
+            if name in played_by:
+                all_people_rolls = add_roll_to_cumulative(played_by[name], all_people_rolls, rolls)
     return all_people_rolls, all_char_rolls
 
 
@@ -373,10 +375,10 @@ def main():
         chk_sess = args.s
     if args.f:
         force_run(file_name, n)
-    elif args.r and not args.c:
-        complete_run(args.r, file_name, chk_sess, args.d, n)
-    elif args.r:
-        partial_finish(args.r, n)
+    elif args.a and not args.c:
+        complete_run(args.a, file_name, chk_sess, args.d, n)
+    elif args.a:
+        partial_finish(args.a, n)
     else:
         partial_run(file_name, chk_sess, args.d, n)
 
@@ -392,7 +394,7 @@ def initialize_args():
     arg_parse.add_argument("--f", "--force", action='store_true', help="forces full run without alias file")
 
     args = arg_parse.parse_args()
-    if args.c and not args.r:
+    if args.c and not args.a:
         arg_parse.error("--c requires -r")
         exit()
     if args.c and args.s:
