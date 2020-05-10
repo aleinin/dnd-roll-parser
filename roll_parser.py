@@ -28,7 +28,7 @@ class RollParser:
 
     # given an inlineroll, returns what quantity, kind of dice,
     # and what number was rolled.
-    # ex 1d20 rolled a 8
+    # ex 1d20 rolled an 8
     @staticmethod
     def get_roll_info(roll):
         title = roll['title']
@@ -72,8 +72,8 @@ class RollParser:
     # main function that parses each message in the chat log
     # it then finds the attack cards inside those messages
     # and gathers data about the roll and records it along
-    # with all other neccesary information
-    def get_player_dn(self, n):
+    # with all other necessary information
+    def get_player_dn(self, n_sided_dice_to_record):
         with open(self.file, 'r', encoding="utf8") as in_file:
             soup = BeautifulSoup(in_file, 'lxml')
             messages = soup.find_all("div", class_=re.compile(r'message.*'))
@@ -88,7 +88,7 @@ class RollParser:
                         if self.debug:
                             print("{} rolled a {}d{} for {} on {}".format(self.recent_player, number_of_dice,
                                                                           type_of_dice, number_rolled, self.session))
-                        if type_of_dice == n:
+                        if type_of_dice == n_sided_dice_to_record:
                             if self.recent_player in self.players:
                                 current_rolls = self.players[self.recent_player]
                                 current_rolls[int(number_rolled) - 1] += 1
@@ -108,16 +108,16 @@ class RollParser:
     # currently the info is about what date roles are from.
     def debug_print(self):
         print()
-        possible_occ = []
-        omitted = []
-        for date, occurence in self.debug_dates.items():
-            if occurence > 25:
-                possible_occ.append("{} with {} occurences".format(date, occurence))
+        likely_sessions = []
+        omitted_sessions = []
+        for date, occurrence in self.debug_dates.items():
+            if occurrence > 25:
+                likely_sessions.append("{} with {} occurrence".format(date, occurrence))
             else:
-                omitted.append("{} with {} occurences".format(date, occurence))
+                omitted_sessions.append("{} with {} occurrence".format(date, occurrence))
         print("Omitted:")
-        for omm in omitted:
-            print(omm)
+        for omitted in omitted_sessions:
+            print(omitted)
         print("\nLikely Sessions:")
-        for possible in possible_occ:
-            print(possible)
+        for likely in likely_sessions:
+            print(likely)

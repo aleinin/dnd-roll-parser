@@ -1,6 +1,7 @@
 from roll_parser import RollParser
 from roll_writer import RollWriter
 
+
 # Used for partial runs
 # reads in the already parsed data stored in the
 # intermediate file into a list.
@@ -25,6 +26,7 @@ def read_in_data():
                     chk_sess = line.replace("\n", "")
                 first_line = False
     return data, chk_sess
+
 
 # reads in the data of the alias file into the appropriate dictionaries and lists
 def read_in_alias(alias_file):
@@ -98,37 +100,38 @@ def attribute_data(alias_file, data):
                 all_people_rolls = add_roll_to_cumulative(played_by[name], all_people_rolls, rolls)
     return all_people_rolls, all_char_rolls
 
+
 # complete standalone run that mines the chat log and produces a csv
-def complete_run(alias_file, file_name, chk_sess, debug, n):
+def complete_run(alias_file, file_name, chk_sess, debug, n_sided_dice_to_record):
     parser = RollParser(file_name, chk_sess, debug)
-    data = parser.get_player_dn(n)
+    data = parser.get_player_dn(n_sided_dice_to_record)
     person_rolls, character_rolls = attribute_data(alias_file, data)
     if chk_sess is None:
         csv_out = "results.csv"
     else:
         csv_out = "{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", ""))
-    out = RollWriter(person_rolls, character_rolls, n, csv_out)
+    out = RollWriter(person_rolls, character_rolls, n_sided_dice_to_record, csv_out)
     out.write_all()
 
 
 # second half of a partial run that reads in the already parsed data
 # and writes out to the csv
-def partial_finish(alias_file, n):
+def partial_finish(alias_file, n_sided_dice_to_record):
     data, chk_sess = read_in_data()
     person_rolls, character_rolls = attribute_data(alias_file, data)
     if chk_sess is None:
         csv_out = "results.csv"
     else:
         csv_out = "{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", ""))
-    out = RollWriter(person_rolls, character_rolls, n, csv_out)
+    out = RollWriter(person_rolls, character_rolls, n_sided_dice_to_record, csv_out)
     out.write_all()
 
 
 # first half of a partial run that parses the data and writes it
 # to an intermediate file. (to be completed once an alias file is made)
-def partial_run(file_name, chk_sess, debug, n):
+def partial_run(file_name, chk_sess, debug, n_sided_dice_to_record):
     parser = RollParser(file_name, chk_sess, debug)
-    data = parser.get_player_dn(n)
+    data = parser.get_player_dn(n_sided_dice_to_record)
     with open("data.dat", 'w') as data_out:
         data_out.write("{}\n".format(chk_sess))
         for key, val in data.items():
@@ -136,10 +139,10 @@ def partial_run(file_name, chk_sess, debug, n):
 
 
 # debug run to force a full run without an alias file
-def force_run(file_name, n):
+def force_run(file_name, n_sided_dice_to_record):
     parser = RollParser(file_name, None, True)
-    data = parser.get_player_dn(n)
+    data = parser.get_player_dn(n_sided_dice_to_record)
     char_rolls = data
     pers_rolls = data
-    out = RollWriter(pers_rolls, char_rolls, n, "debug.csv")
+    out = RollWriter(pers_rolls, char_rolls, n_sided_dice_to_record, "debug.csv")
     out.write_all()

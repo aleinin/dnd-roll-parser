@@ -5,18 +5,18 @@ from rolls import force_run, complete_run, partial_finish, partial_run
 def main():
     arg_parse, args = initialize_args()
     file_name = args.HTML_File
-    chk_sess = None
-    n = int(args.n)
+    chk_sess = None #session To check?
+    n_sided_dice_to_record = int(args.n)
     if args.s:
         chk_sess = args.s
     if args.f:
-        force_run(file_name, n)
+        force_run(file_name, n_sided_dice_to_record)
     elif args.a and not args.c:
-        complete_run(args.a, file_name, chk_sess, args.d, n)
+        complete_run(args.a, file_name, chk_sess, args.d, n_sided_dice_to_record)
     elif args.a:
-        partial_finish(args.a, n)
+        partial_finish(args.a, n_sided_dice_to_record)
     else:
-        partial_run(file_name, chk_sess, args.d, n)
+        partial_run(file_name, chk_sess, args.d, n_sided_dice_to_record)
 
 
 def initialize_args():
@@ -31,12 +31,11 @@ def initialize_args():
 
     args = arg_parse.parse_args()
     if args.c and not args.a:
-        arg_parse.error("--c requires -r")
+        arg_parse.error("--c(ontinue) requires an alias file (-a(lias) {file})")
         exit()
     if args.c and args.s:
-        arg_parse.error("--c not compatible with -s. The session data is stored by the partial run.")
+        arg_parse.error("--c(ontinue) not compatible with -s(ession). The session data is stored by the partial run.")
     return arg_parse, args
-
 
 
 if __name__ == '__main__':
