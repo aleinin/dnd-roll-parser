@@ -1,5 +1,6 @@
 from roll_parser import RollParser
 from roll_writer import RollWriter
+import json
 
 
 # Used for partial runs
@@ -35,27 +36,18 @@ def read_in_alias(alias_file):
     played_by = dict()
     people = []
     characters = []
-    with open(alias_file, "r", encoding='utf-8-sig') as rfile:
-        aliases = rfile.read()
-        subsections = aliases.split("[$12]")
-        for calias in subsections[0].split("\n"):
-            if calias != "":
-                half = calias.split("=")
-                character_aliases[half[0]] = half[1]
-        for alias in subsections[1].split("\n"):
-            if alias != "":
-                half = alias.split("=")
-                person_aliases[half[0]] = half[1]
-        for pby in subsections[2].split("\n"):
-            if pby != "":
-                half = pby.split("=")
-                played_by[half[0]] = half[1]
-        for ppl in subsections[3].replace("\n", "").split(","):
-            if ppl != "":
-                people.append(ppl)
-        for char in subsections[4].replace("\n", "").split(","):
-            if char != "":
-                characters.append(char)
+    with open("alias.json", "r", encoding='utf-8-sig') as json_file:
+        data = json.load(json_file)
+        print()
+        try:
+            character_aliases = data["characterAliases"]
+            person_aliases = data["playerAliases"]
+            played_by = data["playedBy"]
+            people = data["players"]
+            characters = data["characters"]
+        except:
+            print("Unable to parse alias file")
+            exit(1)
     return character_aliases, person_aliases, played_by, people, characters
 
 
