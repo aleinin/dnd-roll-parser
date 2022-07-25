@@ -1,19 +1,20 @@
 # dnd-roll-parser
 The dnd roll parser parses rolls from the chat log of games using D&D 5E by Roll20 character sheet. 
 
-The program accepts the following arguments:
 
-HTML_FILE (required): The html chat log to parse. <br/>
-n (required): Defines what type of dice to parse for. Ex: a D20 would be -n 20
+## Arguments
 
--a : The alias file that specifies what is a character or a player. It also attributes certain characters to players. It is explained in detail further on<br/>
--s : Defines what date to record rolls from. uses "month d, yyyy" format ex: November 5, 2018<br/>
---c : Continuation flag. For reasons explained below, rolls.py will store incomplete runs if a relationship file is not present. The --c flag allows a relationship file to be added in a second run without the data being recalculated.<br/> 
---d : Debug flag. Will print some debug information like what dates were parsed <br/>
---f : Forces a complete run without an alias file. Not recommended. <br/>
+| Argument | Required | Default | Description |
+| :---: | :---: | :---: | :---: |
+| HTML_FILE | Yes | N/A | The html chat log to parse |
+| -n | No | 20 | Defines what type of dice to parse for. Ex: a D20 would be -n 20 |
+| -a | No | None | The (a)lias file that specifies what is a character or a player. It also attributes certain characters to players. It is explained in detail further on |
+| -s | No | None | Defines what date or (s)ession to record rolls from. uses "month d, yyyy" format ex: November 5, 2018 |
+| --c | No | N/A (flag) | For reasons explained below, rolls.py will store incomplete runs if a relationship file is not present. The --c flag allows a relationship file to be added in a (c)ontinued run without the data being recalculated. |
+| --d | No | N/A (flag) | Will print some (d)ebug information like what dates were parsed |
+| --f | No | N/A (flag) | (f)orces a complete run without an alias file. Not recommended. |
 
-
-Run Types:<br/>
+## Run Types
 Because chat logs for games can be hundreds of thousands of lines long, execution time can be upwards of 10 seconds. To prevent duplicate runs in the event of a missing or incomplete relationship file, data is stored in data.dat. In the event of the continuation flag --c, data.dat will be used with the new relationship file.<br/>
 
 There are 3 run types:<br/>
@@ -25,11 +26,13 @@ There are 3 run types:<br/>
 * Incomplete First Run: 
   * Rolls are parsed and printed out to data.dat
 
+## Data
 Format of data.dat:<br/>
 name: [# of 1 rolls, # of 2 rolls, # of 3 rolls, ..., # of n rolls]
 
 where name is the author parsed from the chat log
 
+## Aliases
 Format of the alias json file<br/>
 The alias file is broken into 5 sections:
 

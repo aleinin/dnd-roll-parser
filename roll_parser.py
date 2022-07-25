@@ -73,7 +73,7 @@ class RollParser:
     # it then finds the attack cards inside those messages
     # and gathers data about the roll and records it along
     # with all other necessary information
-    def get_player_dn(self, n_sided_dice_to_record):
+    def get_player_dn(self, die_to_record):
         with open(self.file, 'r', encoding="utf8") as in_file:
             soup = BeautifulSoup(in_file, 'lxml')
             messages = soup.find_all("div", class_=re.compile(r'message.*'))
@@ -88,7 +88,7 @@ class RollParser:
                         if self.debug:
                             print("{} rolled a {}d{} for {} on {}".format(self.recent_player, number_of_dice,
                                                                           type_of_dice, number_rolled, self.session))
-                        if type_of_dice == n_sided_dice_to_record:
+                        if type_of_dice == die_to_record:
                             if self.recent_player in self.players:
                                 current_rolls = self.players[self.recent_player]
                                 current_rolls[int(number_rolled) - 1] += 1
