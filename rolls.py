@@ -1,6 +1,7 @@
 from roll_parser import RollParser
 from roll_writer import RollWriter
 import json
+import sys
 
 
 # Used for partial runs
@@ -97,6 +98,11 @@ def attribute_data(alias_file, data):
 def complete_run(alias_file, file_name, chk_sess, debug, n_sided_dice_to_record):
     parser = RollParser(file_name, chk_sess, debug)
     data = parser.get_player_dn(n_sided_dice_to_record)
+    if len(data) == 0:
+        print("No rolls were parsed{} Check your parameters"
+              .format(" for {}."
+                      .format(chk_sess) if chk_sess is not None else "."))
+        sys.exit(0)
     person_rolls, character_rolls = attribute_data(alias_file, data)
     if chk_sess is None:
         csv_out = "results.csv"
