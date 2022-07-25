@@ -1,6 +1,6 @@
 import csv
 import math
-
+import sys
 
 class RollWriter:
     def __init__(self, person_rolls, character_rolls, n, csv_out):
@@ -33,13 +33,30 @@ class RollWriter:
 
     # hub function that writes the csv
     def write_all(self):
-        with open(self.csv_out, 'w', newline='') as out_file:
-            writer = csv.writer(out_file)
-            self.write_characters(writer)
-            writer.writerow([])
-            self.write_people(writer)
-            writer.writerow([])
-            self.write_static(writer)
+        attempt_to_open = True
+        attempts = 0
+        while attempt_to_open:
+            attempts += 1
+            try:
+                with open(self.csv_out, 'w', newline='') as out_file:
+                    writer = csv.writer(out_file)
+                    self.write_characters(writer)
+                    writer.writerow([])
+                    self.write_people(writer)
+                    writer.writerow([])
+                    self.write_static(writer)
+                    # writes successful
+                    attempt_to_open = False
+            except PermissionError:
+                if attempts == 10:
+                    print("Too many PermissionErrors, quitting")
+                    sys.exit(1)
+                print("Permission denied for '{}'. The file is probably open in another program. Retry? Type 'no' to "
+                      "abort.".format(self.csv_out))
+                response = input(">> ")
+                if response.lower().strip() == "no":
+                    sys.exit(0)
+
 
     # Responsible for writing the static math in the csv
     # based off of n. (Ex: what is the avg roll for that n sided die)
