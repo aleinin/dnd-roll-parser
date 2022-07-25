@@ -16,7 +16,7 @@ def main():
     elif args.a and not args.c:
         complete_run(args.a, file_name, date_to_record, args.d, die_to_record)
     elif args.a:
-        partial_finish(args.a, die_to_record)
+        partial_finish(args.a, die_to_record, args.d)
     else:
         partial_run(file_name, date_to_record, args.d, die_to_record)
 

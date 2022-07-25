@@ -3,7 +3,7 @@ import math
 import sys
 
 class RollWriter:
-    def __init__(self, player_rolls, character_rolls, n, csv_out):
+    def __init__(self, player_rolls, character_rolls, n, csv_out, date_to_record):
         self.character_rolls = character_rolls
         self.player_rolls = player_rolls
         self.n = n
@@ -13,6 +13,7 @@ class RollWriter:
         self.calc_var()
         self.create_header()
         self.ci = 99
+        self.date_to_record = date_to_record
 
     # calculates xbar and variance based off
     # of n (number of dice sides)
@@ -40,6 +41,7 @@ class RollWriter:
             try:
                 with open(self.csv_out, 'w', newline='') as out_file:
                     writer = csv.writer(out_file)
+                    self.write_banner(writer)
                     self.write_characters(writer)
                     writer.writerow([])
                     self.write_players(writer)
@@ -154,6 +156,10 @@ class RollWriter:
         player_rows.sort(key=lambda x: x[1])
         writer.writerows(player_rows)
         self.write_total(writer, total_sum, total_dice_rolled, total_roll_occurence_arr)
+
+    def write_banner(self, writer):
+        for_date = " for {}".format(self.date_to_record) if self.date_to_record is not None else ""
+        writer.writerow(["Results{}".format(for_date)])
 
     # CDF
     @staticmethod

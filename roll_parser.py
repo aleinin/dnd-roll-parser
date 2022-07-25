@@ -5,8 +5,8 @@ import re
 class RollParser:
     def __init__(self, file, date_to_record, debug):
         self.file = file
-        self.players = dict()
-        self.recent_player = ""
+        self.senders = dict()
+        self.recent_sender = ""
         self.session = 1
         self.date_to_record = date_to_record
         self.debug = debug
@@ -64,10 +64,10 @@ class RollParser:
         by = tag.find("span", class_="by")
         whisper = re.compile("^\(.*\)$")
         if by:
-            self.recent_player = by.contents[0].replace(":", "").replace(" (GM)", "")
-            if whisper.match(self.recent_player):
-                self.recent_player = self.recent_player[1:-1].replace("From ", "")
-            self.debug_set.add(self.recent_player)
+            self.recent_sender = by.contents[0].replace(":", "").replace(" (GM)", "")
+            if whisper.match(self.recent_sender):
+                self.recent_sender = self.recent_sender[1:-1].replace("From ", "")
+            self.debug_set.add(self.recent_sender)
 
     # main function that parses each message in the chat log
     # it then finds the attack cards inside those messages
@@ -86,23 +86,23 @@ class RollParser:
                     for roll in attacks:
                         number_of_dice, type_of_dice, number_rolled = RollParser.get_roll_info(roll)
                         if self.debug:
-                            print("{} rolled a {}d{} for {} on {}".format(self.recent_player, number_of_dice,
+                            print("{} rolled a {}d{} for {} on {}".format(self.recent_sender, number_of_dice,
                                                                           type_of_dice, number_rolled, self.session))
                         if type_of_dice == die_to_record:
-                            if self.recent_player in self.players:
-                                current_rolls = self.players[self.recent_player]
+                            if self.recent_sender in self.senders:
+                                current_rolls = self.senders[self.recent_sender]
                                 current_rolls[int(number_rolled) - 1] += 1
-                                self.players[self.recent_player] = current_rolls
+                                self.senders[self.recent_sender] = current_rolls
                                 # otherwise create a new entry
                             else:
                                 current_rolls = []
                                 for i in range(1, 21):
                                     current_rolls.append(0)
                                 current_rolls[int(number_rolled) - 1] += 1
-                                self.players[self.recent_player] = current_rolls
+                                self.senders[self.recent_sender] = current_rolls
         if self.debug:
             self.debug_print()
-        return self.players
+        return self.senders
 
     # if the debug flag was supplied, print some extra info
     # currently the info is about what date roles are from.
