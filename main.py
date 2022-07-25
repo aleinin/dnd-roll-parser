@@ -39,6 +39,8 @@ def initialize_args():
             arg_parse.error(".dat files must be accompanied by an (a)lias file to continue")
     elif not is_html_file(extension):
         arg_parse.error("file must be a .html, .htm, or .dat file")
+    if args.f and args.a:
+        arg_parse.error("(f)orce cannot be combined with an (a)lias file")
     return args, extension
 
 
