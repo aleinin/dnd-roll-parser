@@ -1,7 +1,9 @@
 # dnd-roll-parser
-The dnd roll parser parses rolls from the chat log of games using D&D 5E by Roll20 character sheet. 
+The dnd roll parser parses rolls from the chat log of games using [D&D 5E](https://help.roll20.net/hc/en-us/articles/360037773573-D-D-5E-by-Roll20) by [Roll20](https://roll20.net/) character sheet. 
 
-
+## Getting a chat log
+Launch your Roll20 game. In the chat pane scroll up until you see "View all chat entries for this game >>". <br>
+Once viewing the chat log click on "Show on One Page". Right click, and, using your browser's Save As option, save the page as a "Web Page, Complete". If you save as HTML only the file will not have the right information.
 ## Arguments
 
 | Argument | Required | Default | Description |
@@ -10,51 +12,50 @@ The dnd roll parser parses rolls from the chat log of games using D&D 5E by Roll
 | -n | No | 20 | Defines what type of dice to parse for. Ex: a D20 would be -n 20 |
 | -a | No | None | The (a)lias file that specifies what is a character or a player. It also attributes certain characters to players. It is explained in detail further on |
 | -s | No | None | Defines what date or (s)ession to record rolls from. uses "month d, yyyy" format ex: November 5, 2018 |
-| --c | No | N/A (flag) | For reasons explained below, rolls.py will store incomplete runs if a relationship file is not present. The --c flag allows a relationship file to be added in a (c)ontinued run without the data being recalculated. |
+| --c | No | N/A (flag) | For reasons explained below, rolls.py will store incomplete runs if a alias file is not present. The --c flag allows a alias file to be added in a (c)ontinued run without the data being recalculated. |
 | --d | No | N/A (flag) | Will print some (d)ebug information like what dates were parsed |
 | --f | No | N/A (flag) | (f)orces a complete run without an alias file. Not recommended. |
 
 ## Run Types
-Because chat logs for games can be hundreds of thousands of lines long, execution time can be upwards of 10 seconds. To prevent duplicate runs in the event of a missing or incomplete relationship file, data is stored in data.dat. In the event of the continuation flag --c, data.dat will be used with the new relationship file.<br/>
+Because chat logs for games can be hundreds of thousands of lines long, execution time can be upwards of 10 seconds. To prevent recalculating data in the event of a missing or incomplete alias file, data is stored in data.dat. In the event of the continuation flag --c, data.dat will be used with the new alias file.<br/>
 
 There are 3 run types:<br/>
 
-* Complete First Run:
-  * All files are present to do a complete run. Data is parsed, attributed and printed out to a csv
-* Complete Continuation
-  * Using the roll data stored in data.dat, data is attributed and printed out to a csv
-* Incomplete First Run: 
-  * Rolls are parsed and printed out to data.dat
+| Run Type | Description | Example |
+| :---: | :---: | :---: |
+| Complete First Run | All files are present to do a complete run. Data is parsed, attributed and printed out to a csv | python main.py my_file.html -a my_aliases.json |
+| Incomplete Run | Rolls are parsed and printed out to data.dat. | python main.py my_file.html
+| Continuation Run | Using the roll data stored in data.dat, data is attributed and printed out to a csv | python main.py my_file.html -a my_aliases.json --c
+
 
 ## Data
-Format of data.dat:<br/>
-name: [# of 1 rolls, # of 2 rolls, # of 3 rolls, ..., # of n rolls]
+When parsing in two parts (an incomplete run, then a continuation run) the data is preserved in a file called data.dat
+data.dat contains no attributions or aliases. It simply records every name the parser encounters and the number of each side of dice they rolled
+So for a d20 it'd record:
 
-where name is the author parsed from the chat log
+name: [1, 2, 3, 4, 5, ... , 20]
+
+where the 1st position is how many 1's they rolled, the 2nd how many 2's, and so on. 
+
+## Characters vs Players
+The distinction between characters and players allows the parser to find and attribute all the D&D characters towards the player who played them.
+If Isaac Asimov is playing a halfing rogue named Barnan then the character is "Barnan" and the player is "Isaac Asimov"
+
 
 ## Aliases
-Format of the alias json file<br/>
-The alias file is broken into 5 sections:
+The alias file is broken into 5 sections
 
-* "characterAliases"
-  * The characters and what they're known by
-  * "long_form_name": "short_name"
-* "playerAliases"
-  * The players and what they're known by
-  * "long_form_name": "short_name"
-* "playedBy"
-  * Who played what character 
-  * "character": "player"
-* "players"
-  * The list of players
-  * ["player1", "player2"]
-* "characters"
-  * The list of characters
-  * ["character1", "character2"]
+| Field | Description | Example |
+| :---: | :---: | :---: |
+| characterAliases | The characters and what they're known by. Often used to shorten their name. | "Grom The Barbarian": "Grom"
+| playerAliases | The players and what they're known by. Often used to shorten their name. | "Juliet Capulet": "Juliet"
+| playedBy | Who the character is played by. If they were aliased above, use the short form name(s). | "Grom": "Juliet" 
+| players | The list of players | ["Juliet", "Romeo"] 
+| characters | The list of characters | ["Grom", "Merlin"]
 
-For example, lets say we have John Doe who plays character Arogak Destel. We also have Jane who plays Enok. In the results file  we want to show the two characters Arogak and Enok (first names only). Likewise, we only want the first names of the players.<br/>
+For example, lets say we have Gary Gygax who plays the character Arogak Destel. We also have Daisy who plays Enok. In the results file  we want to show the two characters Arogak and Enok (first names only). Likewise, we only want the first names of the players.<br/>
 
-Arogak Destel is then a character alias that needs to map to Arogak. John Doe -> John. Essentially the alias file sets up dictionary key value pairs. In the above situation the relationship file would be:<br/>
+Arogak Destel is then a character alias that needs to map to Arogak. Gary Gygax -> Gary. Essentially the alias file sets up dictionary key value pairs. In the above situation the alias file would be:<br/>
 
 
 ```json
@@ -63,21 +64,22 @@ Arogak Destel is then a character alias that needs to map to Arogak. John Doe ->
         "Arogak Destel": "Arogak"
     },
     "playerAliases": {
-        "John Doe": "John"
+        "Gary Gygax": "Gary"
     },
     "playedBy": {
-        "Arogak": "John",
-        "Enok": "Jane"
+        "Arogak": "Gary",
+        "Enok": "Daisy"
     },
     "characters": [
         "Arogak",
         "Enok"
     ],
     "players": [
-        "John",
-        "Jane"
+        "Gary",
+        "Daisy"
     ]
 }
 ```
-Note how Jane and Enok don't need aliases listed because their names are already in the desired form. <br/>
-<br/>
+Note how Daisy and Enok don't need aliases listed because their names are already in the desired form. <br/>
+
+Any data parsed that cannot be attributed towards a player or character will be discarded. 
