@@ -3,9 +3,9 @@ import math
 import sys
 
 class RollWriter:
-    def __init__(self, person_rolls, character_rolls, n, csv_out):
+    def __init__(self, player_rolls, character_rolls, n, csv_out):
         self.character_rolls = character_rolls
-        self.person_rolls = person_rolls
+        self.player_rolls = player_rolls
         self.n = n
         self.csv_out = csv_out
         self.header = ["Name", "Avg", "# Rolled", "Sum", "Expected Sum", "Difference", "s^2", "s",
@@ -42,7 +42,7 @@ class RollWriter:
                     writer = csv.writer(out_file)
                     self.write_characters(writer)
                     writer.writerow([])
-                    self.write_people(writer)
+                    self.write_players(writer)
                     writer.writerow([])
                     self.write_static(writer)
                     # writes successful
@@ -127,21 +127,21 @@ class RollWriter:
             prob_list[i] = round(all_list[i] / all_dice_rolled, 3)
         writer.writerow(["", "", "", "", "", "", "", "", "", "", "Probability:"] + prob_list)
 
-    def write_people(self, writer):
-        writer.writerow(["People"])
+    def write_players(self, writer):
+        writer.writerow(["Players"])
         writer.writerow(self.header)
         total_dice_rolled = 0
         total_sum = 0
         total_roll_occurence_arr = []
-        people_rows = []
-        for person_name, roll_occurrence_arr in self.person_rolls.items():
+        player_rows = []
+        for player_name, roll_occurrence_arr in self.player_rolls.items():
             roll_sum = 0
             num_dice_rolled = 0
             for i, num_i_rolled in enumerate(roll_occurrence_arr):
                 num_dice_rolled += num_i_rolled
                 roll_sum += (num_i_rolled * (i + 1))
             stat_arr = self.calc_stats(roll_sum, num_dice_rolled)
-            people_rows.append([person_name] + stat_arr + roll_occurrence_arr)
+            player_rows.append([player_name] + stat_arr + roll_occurrence_arr)
             # summation work for total later
             total_dice_rolled = total_dice_rolled + num_dice_rolled
             total_sum = total_sum + roll_sum
@@ -151,8 +151,8 @@ class RollWriter:
                     total_roll_occurence_arr.append(0)
             for i in range(0, self.n):
                 total_roll_occurence_arr[i] += roll_occurrence_arr[i]
-        people_rows.sort(key=lambda x: x[1])
-        writer.writerows(people_rows)
+        player_rows.sort(key=lambda x: x[1])
+        writer.writerows(player_rows)
         self.write_total(writer, total_sum, total_dice_rolled, total_roll_occurence_arr)
 
     # CDF

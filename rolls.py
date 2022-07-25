@@ -33,23 +33,23 @@ def read_in_data():
 # reads in the data of the alias file into the appropriate dictionaries and lists
 def read_in_alias(alias_file):
     character_aliases = dict()
-    person_aliases = dict()
+    player_aliases = dict()
     played_by = dict()
-    people = []
+    players = []
     characters = []
     with open(alias_file, "r", encoding='utf-8-sig') as json_file:
         data = json.load(json_file)
         print()
         try:
             character_aliases = data["characterAliases"]
-            person_aliases = data["playerAliases"]
+            player_aliases = data["playerAliases"]
             played_by = data["playedBy"]
-            people = data["players"]
+            players = data["players"]
             characters = data["characters"]
         except:
             print("Unable to parse alias file")
             exit(1)
-    return character_aliases, person_aliases, played_by, people, characters
+    return character_aliases, player_aliases, played_by, players, characters
 
 
 # uses alias file to translate names to known key value pairs
@@ -78,20 +78,20 @@ def add_roll_to_cumulative(name, cumulative_rolls, individual_rolls):
 
 
 # given the key value pairs supplied by the alias file,
-# attribute the rolls to the correct people and characters.
+# attribute the rolls to the correct players and characters.
 def attribute_data(alias_file, data):
-    all_people_rolls = dict()
+    all_player_rolls = dict()
     all_char_rolls = dict()
-    character_aliases, aliases, played_by, people, characters = read_in_alias(alias_file)
+    character_aliases, aliases, played_by, players, characters = read_in_alias(alias_file)
     for name, rolls in data.items():
         name = translate_name(name, character_aliases, aliases)
-        if name in people:
-            all_people_rolls = add_roll_to_cumulative(name, all_people_rolls, rolls)
+        if name in players:
+            all_player_rolls = add_roll_to_cumulative(name, all_player_rolls, rolls)
         else:
             all_char_rolls = add_roll_to_cumulative(name, all_char_rolls, rolls)
             if name in played_by:
-                all_people_rolls = add_roll_to_cumulative(played_by[name], all_people_rolls, rolls)
-    return all_people_rolls, all_char_rolls
+                all_player_rolls = add_roll_to_cumulative(played_by[name], all_player_rolls, rolls)
+    return all_player_rolls, all_char_rolls
 
 
 # complete standalone run that mines the chat log and produces a csv
@@ -103,12 +103,12 @@ def complete_run(alias_file, file_name, chk_sess, debug, n_sided_dice_to_record)
               .format(" for {}."
                       .format(chk_sess) if chk_sess is not None else "."))
         sys.exit(0)
-    person_rolls, character_rolls = attribute_data(alias_file, data)
+    player_rolls, character_rolls = attribute_data(alias_file, data)
     if chk_sess is None:
         csv_out = "results.csv"
     else:
         csv_out = "{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", ""))
-    out = RollWriter(person_rolls, character_rolls, n_sided_dice_to_record, csv_out)
+    out = RollWriter(player_rolls, character_rolls, n_sided_dice_to_record, csv_out)
     out.write_all()
 
 
@@ -116,12 +116,12 @@ def complete_run(alias_file, file_name, chk_sess, debug, n_sided_dice_to_record)
 # and writes out to the csv
 def partial_finish(alias_file, n_sided_dice_to_record):
     data, chk_sess = read_in_data()
-    person_rolls, character_rolls = attribute_data(alias_file, data)
+    player_rolls, character_rolls = attribute_data(alias_file, data)
     if chk_sess is None:
         csv_out = "results.csv"
     else:
         csv_out = "{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", ""))
-    out = RollWriter(person_rolls, character_rolls, n_sided_dice_to_record, csv_out)
+    out = RollWriter(player_rolls, character_rolls, n_sided_dice_to_record, csv_out)
     out.write_all()
 
 
