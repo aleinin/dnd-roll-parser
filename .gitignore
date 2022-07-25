@@ -1,5 +1,9 @@
 /.idea/*
 /venv/*
 /.idea/
-data.dat
-results.csv
+*.dat
+*.csv
+*.json
+*.htm
+*.html
+/*_files/*

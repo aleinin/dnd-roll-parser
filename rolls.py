@@ -36,7 +36,7 @@ def read_in_alias(alias_file):
     played_by = dict()
     people = []
     characters = []
-    with open("alias.json", "r", encoding='utf-8-sig') as json_file:
+    with open(alias_file, "r", encoding='utf-8-sig') as json_file:
         data = json.load(json_file)
         print()
         try:
