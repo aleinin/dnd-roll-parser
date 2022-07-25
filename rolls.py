@@ -9,7 +9,7 @@ import sys
 # intermediate file into a list.
 def read_in_data():
     data = dict()
-    chk_sess = None
+    date_to_record = None
     with open("data.dat", "r") as data_in:
         first_line = True
         for line in data_in:
@@ -25,9 +25,9 @@ def read_in_data():
                 data[name] = rolls
             else:
                 if not line == "None\n":
-                    chk_sess = line.replace("\n", "")
+                    date_to_record = line.replace("\n", "")
                 first_line = False
-    return data, chk_sess
+    return data, date_to_record
 
 
 # reads in the data of the alias file into the appropriate dictionaries and lists
@@ -95,43 +95,31 @@ def attribute_data(alias_file, data):
 
 
 # complete standalone run that mines the chat log and produces a csv
-def complete_run(alias_file, file_name, chk_sess, debug, n_sided_dice_to_record):
-    parser = RollParser(file_name, chk_sess, debug)
+def complete_run(alias_file, file_name, date_to_record, debug, n_sided_dice_to_record):
+    parser = RollParser(file_name, date_to_record, debug)
     data = parser.get_player_dn(n_sided_dice_to_record)
     if len(data) == 0:
         print("No rolls were parsed{} Check your parameters"
               .format(" for {}."
-                      .format(chk_sess) if chk_sess is not None else "."))
+                      .format(date_to_record) if date_to_record is not None else "."))
         sys.exit(0)
-    player_rolls, character_rolls = attribute_data(alias_file, data)
-    if chk_sess is None:
-        csv_out = "results.csv"
-    else:
-        csv_out = "{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", ""))
-    out = RollWriter(player_rolls, character_rolls, n_sided_dice_to_record, csv_out)
-    out.write_all()
+    finish(alias_file, data, date_to_record, n_sided_dice_to_record)
 
 
 # second half of a partial run that reads in the already parsed data
 # and writes out to the csv
 def partial_finish(alias_file, n_sided_dice_to_record):
-    data, chk_sess = read_in_data()
-    player_rolls, character_rolls = attribute_data(alias_file, data)
-    if chk_sess is None:
-        csv_out = "results.csv"
-    else:
-        csv_out = "{}_results.csv".format(chk_sess.replace(" ", "_").replace(",", ""))
-    out = RollWriter(player_rolls, character_rolls, n_sided_dice_to_record, csv_out)
-    out.write_all()
+    data, date_to_record = read_in_data()
+    finish(alias_file, data, date_to_record, n_sided_dice_to_record)
 
 
 # first half of a partial run that parses the data and writes it
 # to an intermediate file. (to be completed once an alias file is made)
-def partial_run(file_name, chk_sess, debug, n_sided_dice_to_record):
-    parser = RollParser(file_name, chk_sess, debug)
+def partial_run(file_name, date_to_record, debug, n_sided_dice_to_record):
+    parser = RollParser(file_name, date_to_record, debug)
     data = parser.get_player_dn(n_sided_dice_to_record)
     with open("data.dat", 'w') as data_out:
-        data_out.write("{}\n".format(chk_sess))
+        data_out.write("{}\n".format(date_to_record))
         for key, val in data.items():
             data_out.write("{}:{}\n".format(key, val))
 
@@ -143,4 +131,14 @@ def force_run(file_name, n_sided_dice_to_record):
     char_rolls = data
     pers_rolls = data
     out = RollWriter(pers_rolls, char_rolls, n_sided_dice_to_record, "debug.csv")
+    out.write_all()
+
+
+def finish(alias_file, data, date_to_record, n_sided_dice_to_record):
+    player_rolls, character_rolls = attribute_data(alias_file, data)
+    if date_to_record is None:
+        csv_out = "results.csv"
+    else:
+        csv_out = "{}_results.csv".format(date_to_record.replace(" ", "_").replace(",", ""))
+    out = RollWriter(player_rolls, character_rolls, n_sided_dice_to_record, csv_out)
     out.write_all()

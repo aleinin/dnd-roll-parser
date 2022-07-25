@@ -3,12 +3,12 @@ import re
 
 
 class RollParser:
-    def __init__(self, file, chk_sess, debug):
+    def __init__(self, file, date_to_record, debug):
         self.file = file
         self.players = dict()
         self.recent_player = ""
         self.session = 1
-        self.chk_sess = chk_sess
+        self.date_to_record = date_to_record
         self.debug = debug
         self.debug_set = set()
         self.debug_dates = dict()
@@ -57,7 +57,7 @@ class RollParser:
     # returns if the roll is from the date supplied
     # if no date was supplied, returns true
     def in_session(self):
-        return self.session == self.chk_sess or self.chk_sess is None
+        return self.session == self.date_to_record or self.date_to_record is None
 
     # finds who the roll belonged to by parsing the author data
     def get_author(self, tag):
