@@ -8,16 +8,15 @@ Once viewing the chat log click on "Show on One Page". Right click, and, using y
 
 | Argument | Required | Default | Description |
 | :---: | :---: | :---: | :---: |
-| HTML_FILE | Yes | N/A | The html chat log to parse |
+| file | Yes | N/A | The file to be processed. .html (or .htm) in the case of complete/partial runs. .dat in the case of continuation |
 | -n | No | 20 | Defines what type of dice to parse for. Ex: a D20 would be -n 20 |
 | -a | No | None | The (a)lias file that specifies what is a character or a player. It also attributes certain characters to players. It is explained in detail further on |
 | -s | No | None | Defines what date or (s)ession to record rolls from. uses "month d, yyyy" format ex: November 5, 2018 |
-| --c | No | N/A (flag) | For reasons explained below, rolls.py will store incomplete runs if a alias file is not present. The --c flag allows a alias file to be added in a (c)ontinued run without the data being recalculated. |
 | --d | No | N/A (flag) | Will print some (d)ebug information like what dates were parsed |
 | --f | No | N/A (flag) | (f)orces a complete run without an alias file. Not recommended. |
 
 ## Run Types
-Because chat logs for games can be hundreds of thousands of lines long, execution time can be upwards of 10 seconds. To prevent recalculating data in the event of a missing or incomplete alias file, data is stored in data.dat. In the event of the continuation flag --c, data.dat will be used with the new alias file.<br/>
+Because chat logs for games can be hundreds of thousands of lines long, execution time can be upwards of 10 seconds. To prevent recalculating data in the event of a missing or incomplete alias file, data is stored in data.dat. If the file is a .dat, the data will be used with the supplied alias file.<br/>
 
 There are 3 run types:<br/>
 
@@ -25,7 +24,7 @@ There are 3 run types:<br/>
 | :---: | :---: | :---: |
 | Complete First Run | All files are present to do a complete run. Data is parsed, attributed and printed out to a csv | python main.py my_file.html -a my_aliases.json |
 | Incomplete Run | Rolls are parsed and printed out to data.dat. | python main.py my_file.html
-| Continuation Run | Using the roll data stored in data.dat, data is attributed and printed out to a csv | python main.py my_file.html -a my_aliases.json --c
+| Continuation Run | Using the roll data stored in data.dat, data is attributed and printed out to a csv | python main.py data.dat -a my_aliases.json
 
 
 ## Data

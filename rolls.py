@@ -7,10 +7,10 @@ import sys
 # Used for partial runs
 # reads in the already parsed data stored in the
 # intermediate file into a list.
-def read_in_data():
+def read_in_data(data_file):
     data = dict()
     date_to_record = None
-    with open("data.dat", "r") as data_in:
+    with open(data_file, "r") as data_in:
         first_line = True
         for line in data_in:
             if not first_line:
@@ -110,8 +110,8 @@ def complete_run(alias_file, file_name, date_to_record, is_debug, die_to_record)
 
 # second half of a partial run that reads in the already parsed data
 # and writes out to the csv
-def partial_finish(alias_file, die_to_record, is_debug):
-    data, date_to_record = read_in_data()
+def partial_finish(data_file, alias_file, die_to_record, is_debug):
+    data, date_to_record = read_in_data(data_file)
     finish(alias_file, data, date_to_record, die_to_record, is_debug)
 
 
