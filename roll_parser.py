@@ -109,7 +109,8 @@ class RollParser:
         with open(self.log_file, 'r', encoding="utf8") as in_file:
             soup = BeautifulSoup(in_file, 'lxml')
             messages = soup.find_all("div", class_=re.compile(r'message.*'))
-            for msg_num, message in enumerate(messages):
+            roll_num = 0
+            for message in messages:
                 self.get_author(message)
                 self.get_session(message)
                 roll_cards = message.find("div", class_=re.compile(r'.*-simple|.*-atkdmg|.*-atk|.*-npc'))
@@ -119,9 +120,10 @@ class RollParser:
                         number_of_dice, type_of_dice, number_rolled = RollParser.get_roll_info(roll)
                         if type_of_dice == self.die_to_record:
                             if self.is_debug:
+                                roll_num += 1
                                 print("{} rolled a {}d{} for {} on {} (#{})".format(self.recent_sender, number_of_dice,
                                                                                     type_of_dice, number_rolled,
-                                                                                    self.recent_date, msg_num))
+                                                                                    self.recent_date, roll_num))
                             self.add_roll_to_player(number_rolled)
         if self.is_debug:
             self.debug_print()

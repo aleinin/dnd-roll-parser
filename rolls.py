@@ -116,14 +116,14 @@ def complete_run(alias_file, file_name, date_to_record, is_debug, die_to_record)
               .format(" for {}."
                       .format(date_to_record) if date_to_record is not None else "."))
         sys.exit(0)
-    finish(alias_file, data, date_to_record, die_to_record, is_debug)
+    return finish(alias_file, data, date_to_record, die_to_record, is_debug)
 
 
 # second half of a partial run that reads in the already parsed data
 # and writes out to the csv
 def partial_finish(data_file, alias_file, die_to_record, is_debug):
     data, date_to_record = read_in_data(data_file)
-    finish(alias_file, data, date_to_record, die_to_record, is_debug)
+    return finish(alias_file, data, date_to_record, die_to_record, is_debug)
 
 
 # first half of a partial run that parses the data and writes it
@@ -135,7 +135,7 @@ def partial_run(file_name, date_to_record, is_debug, die_to_record):
         data_out.write("{}\n".format(date_to_record))
         for key, val in data.items():
             data_out.write("{}:{}\n".format(key, val))
-    print("Success. Wrote to data.dat")
+    return "data.dat"
 
 
 # debug run to force a full run without an alias file
@@ -144,9 +144,9 @@ def force_run(file_name, die_to_record):
     data = parser.parse_rolls()
     character_rolls = data
     player_rolls = data
-    out = RollWriter(player_rolls, character_rolls, die_to_record, "force.csv")
+    out = RollWriter(player_rolls, character_rolls, die_to_record, "force.csv", None)
     out.write_all()
-    print("Success. Wrote to force.csv")
+    return "force.csv"
 
 
 def finish(alias_file, data, date_to_record, die_to_record, is_debug):
@@ -157,4 +157,4 @@ def finish(alias_file, data, date_to_record, die_to_record, is_debug):
         csv_out = "{}_results.csv".format(date_to_record.replace(" ", "_").replace(",", ""))
     out = RollWriter(player_rolls, character_rolls, die_to_record, csv_out, date_to_record)
     out.write_all()
-    print("Success. Wrote to {}".format(csv_out))
+    return csv_out
