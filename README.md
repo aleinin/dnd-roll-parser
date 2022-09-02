@@ -11,8 +11,8 @@ Once viewing the chat log click on "Show on One Page". Right click, and, using y
 | file | Yes | N/A | The file to be processed. .html (or .htm) in the case of complete/partial runs. .dat in the case of continuation |
 | -n | No | 20 | Defines what type of dice to parse for. Ex: a D20 would be -n 20 |
 | -a | No | None | The (a)lias file that specifies what is a character or a player. It also attributes certain characters to players. It is explained in detail further on |
-| -s | No | None | Defines what date or (s)ession to record rolls from. uses "month d, yyyy" format ex: November 5, 2018 |
-| --d | No | N/A (flag) | Will print some (d)ebug information like what dates were parsed |
+| -d | No | None | Defines what (d)ate to record rolls from. uses "month d, yyyy" format ex: November 5, 2018 |
+| --x | No | N/A (flag) | Will print some e(x)tra debug information like what dates were parsed |
 | --f | No | N/A (flag) | (f)orces a complete run without an alias file. Not recommended. |
 
 ## Run Types
@@ -46,8 +46,8 @@ The alias file is broken into 5 sections
 
 | Field | Description | Example |
 | :---: | :---: | :---: |
-| characterAliases | The characters and what they're known by. Often used to shorten their name. | "Grom The Barbarian": "Grom"
-| playerAliases | The players and what they're known by. Often used to shorten their name. | "Juliet Capulet": "Juliet"
+| characterAliases | The characters and and what names they appear as. Often used to shorten their name. | "Grom": "Grom The Barbarian"
+| playerAliases | The players and what names they appear as. Often used to shorten their name. | "Juliet": "Juliet Capulet"
 | playedBy | Who the character is played by. If they were aliased above, use the short form name(s). | "Grom": "Juliet" 
 | players | The list of players | ["Juliet", "Romeo"] 
 | characters | The list of characters | ["Grom", "Merlin"]
@@ -82,3 +82,26 @@ Arogak Destel is then a character alias that needs to map to Arogak. Gary Gygax 
 Note how Daisy and Enok don't need aliases listed because their names are already in the desired form. <br/>
 
 Any data parsed that cannot be attributed towards a player or character will be discarded. 
+
+## Regex Support
+
+If you have a player or character who goes by many names it may be better to use a regex pattern. characterAliases & player aliases
+support regex. 
+
+For example say you have a character who goes by:
+
+* "Sir Mercutio The Eldest"
+
+* "Mercutio The Supreme"
+
+* "Fellow Mercutio"
+
+Instead of listing 3 different aliases, you could simply do:
+```json
+{
+  "characterAliases": {
+    "Mercutio": ".*Mercutio.*"
+  },
+  ...
+}
+```

@@ -2,6 +2,7 @@ from roll_parser import RollParser
 from roll_writer import RollWriter
 import json
 import sys
+import re
 
 
 # Used for partial runs
@@ -41,8 +42,10 @@ def read_in_alias(alias_file):
         data = json.load(json_file)
         print()
         try:
-            character_aliases = data["characterAliases"]
-            player_aliases = data["playerAliases"]
+            for character, alias_pattern in data["characterAliases"].items():
+                character_aliases[character] = re.compile(alias_pattern)
+            for player, alias_pattern in data["playerAliases"].items():
+                player_aliases[player] = re.compile(alias_pattern)
             played_by = data["playedBy"]
             players = data["players"]
             characters = data["characters"]
@@ -52,14 +55,22 @@ def read_in_alias(alias_file):
     return character_aliases, player_aliases, played_by, players, characters
 
 
+# checks if the name is aliased, returning it if so or None if not
+def translate_name_if_possible(item_to_find, alias_dict):
+    for name, alias_pattern in alias_dict.items():
+        if alias_pattern.match(item_to_find):
+            return name
+    return None
+
+
 # uses alias file to translate names to known key value pairs
 # ex: if name is "John Doe" or "John D." they might both translate
 # to "John" if those alias pairs are described in the file.
-def translate_name(name, character_aliases, aliases):
-    if name in character_aliases:
-        name = character_aliases[name]
-    elif name in aliases:
-        name = aliases[name]
+def translate_name(name, character_aliases, player_aliases):
+    for pattern_dict in [character_aliases, player_aliases]:
+        translated_name = translate_name_if_possible(name, pattern_dict)
+        if translated_name is not None:
+            return translated_name
     return name
 
 
@@ -82,9 +93,9 @@ def add_roll_to_cumulative(name, cumulative_rolls, individual_rolls):
 def attribute_data(alias_file, data, is_debug):
     all_player_rolls = dict()
     all_char_rolls = dict()
-    character_aliases, aliases, played_by, players, characters = read_in_alias(alias_file)
+    character_aliases, player_aliases, played_by, players, characters = read_in_alias(alias_file)
     for name, rolls in data.items():
-        name = translate_name(name, character_aliases, aliases)
+        name = translate_name(name, character_aliases, player_aliases)
         if name in players:
             all_player_rolls = add_roll_to_cumulative(name, all_player_rolls, rolls)
         elif name in characters:
@@ -92,7 +103,7 @@ def attribute_data(alias_file, data, is_debug):
             if name in played_by:
                 all_player_rolls = add_roll_to_cumulative(played_by[name], all_player_rolls, rolls)
         elif is_debug:
-            print("{} was discarded as they're neither a player nor a character".format(name))
+            print("'{}' was discarded as they're neither a player nor a character".format(name))
     return all_player_rolls, all_char_rolls
 
 

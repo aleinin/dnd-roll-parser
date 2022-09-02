@@ -10,17 +10,17 @@ def main():
     die_to_record = 20
     if args.n:
         die_to_record = int(args.n)
-    if args.s:
-        date_to_record = args.s
+    if args.d:
+        date_to_record = args.d
     if args.f:
         force_run(file_name, die_to_record)
     if is_html_file(extension):
         if args.a:
-            complete_run(args.a, file_name, date_to_record, args.d, die_to_record)
+            complete_run(args.a, file_name, date_to_record, args.x, die_to_record)
         else:
-            partial_run(file_name, date_to_record, args.d, die_to_record)
+            partial_run(file_name, date_to_record, args.x, die_to_record)
     else:
-        partial_finish(file_name, args.a, die_to_record, args.d)
+        partial_finish(file_name, args.a, die_to_record, args.x)
 
 
 def initialize_args():
@@ -29,8 +29,8 @@ def initialize_args():
                                         "runs. The data file in the case of continuations.")
     arg_parse.add_argument("-n", help="what sided die to record data for")
     arg_parse.add_argument("-a", "-alias", help="alias file")
-    arg_parse.add_argument("-s", "-session", help="what date to record rolls")
-    arg_parse.add_argument("--d", "--debug", action='store_true', help="debug flag")
+    arg_parse.add_argument("-d", "-date", help="what date to record rolls")
+    arg_parse.add_argument("--x", action='store_true', help="debug flag")
     arg_parse.add_argument("--f", "--force", action='store_true', help="forces full run without alias file")
     args = arg_parse.parse_args()
     _, extension = splitext(args.file)
