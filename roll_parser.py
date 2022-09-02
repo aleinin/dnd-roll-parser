@@ -3,15 +3,15 @@ import re
 
 
 class RollParser:
-    def __init__(self, file, date_to_record, debug):
-        self.file = file
+    def __init__(self, log_file, date_to_record, is_debug, die_to_record):
+        self.log_file = log_file
         self.senders = dict()
         self.recent_sender = ""
-        self.session = 1
+        self.recent_date = 1
         self.date_to_record = date_to_record
-        self.debug = debug
-        self.debug_set = set()
-        self.debug_dates = dict()
+        self.is_debug = is_debug
+        self.date_to_occurrences = dict()
+        self.die_to_record = die_to_record
 
     # helper function for get_roll_info returns
     # what quantity and kind of dice roll is contained
@@ -64,6 +64,7 @@ class RollParser:
         else:
             return -1, -1, -1
 
+    # get the date, if present, the message was sent
     def get_session(self, msg):
         parsed_date_line = msg.find("span", class_="tstamp")
         date = ""
@@ -71,16 +72,16 @@ class RollParser:
             parsed_date = parsed_date_line.contents[0]
             date = re.sub(' [0-9]*:[0-9]*[A|P]M', "", parsed_date)
         if date != "":
-            if date not in self.debug_dates:
-                self.debug_dates[date] = 1
+            if date not in self.date_to_occurrences:
+                self.date_to_occurrences[date] = 1
             else:
-                self.debug_dates[date] += 1
-            self.session = date
+                self.date_to_occurrences[date] += 1
+            self.recent_date = date
 
     # returns if the roll is from the date supplied
     # if no date was supplied, returns true
     def in_session(self):
-        return self.session == self.date_to_record or self.date_to_record is None
+        return self.recent_date == self.date_to_record or self.date_to_record is None
 
     # finds who the roll belonged to by parsing the author data
     def get_author(self, tag):
@@ -90,15 +91,13 @@ class RollParser:
             self.recent_sender = by.contents[0].replace(":", "").replace(" (GM)", "")
             if whisper.match(self.recent_sender):
                 self.recent_sender = self.recent_sender[1:-1].replace("From ", "")
-            self.debug_set.add(self.recent_sender)
 
     # record roll to player, initializing data if necessary
     def add_roll_to_player(self, number_rolled):
         if self.recent_sender in self.senders:
             current_rolls = self.senders[self.recent_sender]
         else:
-            # todo non d20 support
-            current_rolls = [0] * 20
+            current_rolls = [0] * self.die_to_record
         current_rolls[int(number_rolled) - 1] += 1
         self.senders[self.recent_sender] = current_rolls
 
@@ -106,8 +105,8 @@ class RollParser:
     # it then finds the attack cards inside those messages
     # and gathers data about the roll and records it along
     # with all other necessary information
-    def get_player_dn(self, die_to_record):
-        with open(self.file, 'r', encoding="utf8") as in_file:
+    def parse_rolls(self):
+        with open(self.log_file, 'r', encoding="utf8") as in_file:
             soup = BeautifulSoup(in_file, 'lxml')
             messages = soup.find_all("div", class_=re.compile(r'message.*'))
             for msg_num, message in enumerate(messages):
@@ -118,13 +117,13 @@ class RollParser:
                     attacks = roll_cards.find_all("span", class_=re.compile(r'inlinerollresult.*'))
                     for roll in attacks:
                         number_of_dice, type_of_dice, number_rolled = RollParser.get_roll_info(roll)
-                        if type_of_dice == die_to_record:
-                            if self.debug:
+                        if type_of_dice == self.die_to_record:
+                            if self.is_debug:
                                 print("{} rolled a {}d{} for {} on {} (#{})".format(self.recent_sender, number_of_dice,
                                                                                     type_of_dice, number_rolled,
-                                                                                    self.session, msg_num))
+                                                                                    self.recent_date, msg_num))
                             self.add_roll_to_player(number_rolled)
-        if self.debug:
+        if self.is_debug:
             self.debug_print()
         return self.senders
 
@@ -134,7 +133,7 @@ class RollParser:
         print()
         likely_sessions = []
         omitted_sessions = []
-        for date, occurrence in self.debug_dates.items():
+        for date, occurrence in self.date_to_occurrences.items():
             if occurrence > 25:
                 likely_sessions.append("{} with {} occurrence".format(date, occurrence))
             else:

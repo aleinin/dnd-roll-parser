@@ -98,8 +98,8 @@ def attribute_data(alias_file, data, is_debug):
 
 # complete standalone run that mines the chat log and produces a csv
 def complete_run(alias_file, file_name, date_to_record, is_debug, die_to_record):
-    parser = RollParser(file_name, date_to_record, is_debug)
-    data = parser.get_player_dn(die_to_record)
+    parser = RollParser(file_name, date_to_record, is_debug, die_to_record)
+    data = parser.parse_rolls()
     if len(data) == 0:
         print("No rolls were parsed{} Check your parameters"
               .format(" for {}."
@@ -118,8 +118,8 @@ def partial_finish(data_file, alias_file, die_to_record, is_debug):
 # first half of a partial run that parses the data and writes it
 # to an intermediate file. (to be completed once an alias file is made)
 def partial_run(file_name, date_to_record, is_debug, die_to_record):
-    parser = RollParser(file_name, date_to_record, is_debug)
-    data = parser.get_player_dn(die_to_record)
+    parser = RollParser(file_name, date_to_record, is_debug, die_to_record)
+    data = parser.parse_rolls()
     with open("data.dat", 'w') as data_out:
         data_out.write("{}\n".format(date_to_record))
         for key, val in data.items():
@@ -129,8 +129,8 @@ def partial_run(file_name, date_to_record, is_debug, die_to_record):
 
 # debug run to force a full run without an alias file
 def force_run(file_name, die_to_record):
-    parser = RollParser(file_name, None, True)
-    data = parser.get_player_dn(die_to_record)
+    parser = RollParser(file_name, None, True, die_to_record)
+    data = parser.parse_rolls()
     character_rolls = data
     player_rolls = data
     out = RollWriter(player_rolls, character_rolls, die_to_record, "force.csv")
